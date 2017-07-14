@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2014 The btcsuite developers
+// Copyright (c) 2013-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -7,7 +7,8 @@ package blockchain
 import (
 	"fmt"
 
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/database"
 	"github.com/btcsuite/btcutil"
 )
 
@@ -38,14 +39,40 @@ const (
 
 // blockExists determines whether a block with the given hash exists either in
 // the main chain or any side chains.
-func (b *BlockChain) blockExists(hash *wire.ShaHash) (bool, error) {
-	// Check memory chain first (could be main chain or side chain blocks).
-	if _, ok := b.index[*hash]; ok {
+//
+// This function MUST be called with the chain state lock held (for reads).
+func (b *BlockChain) blockExists(hash *chainhash.Hash) (bool, error) {
+	// Check block index first (could be main chain or side chain blocks).
+	if b.index.HaveBlock(hash) {
 		return true, nil
 	}
 
-	// Check in database (rest of main chain not in memory).
-	return b.db.ExistsSha(hash)
+	// Check in the database.
+	var exists bool
+	err := b.db.View(func(dbTx database.Tx) error {
+		var err error
+		exists, err = dbTx.HasBlock(hash)
+		if err != nil || !exists {
+			return err
+		}
+
+		// Ignore side chain blocks in the database.  This is necessary
+		// because there is not currently any record of the associated
+		// block index data such as its block height, so it's not yet
+		// possible to efficiently load the block and do anything useful
+		// with it.
+		//
+		// Ultimately the entire block index should be serialized
+		// instead of only the current main chain so it can be consulted
+		// directly.
+		_, err = dbFetchHeightByHash(dbTx, hash)
+		if isNotInMainChainErr(err) {
+			exists = false
+			return nil
+		}
+		return err
+	})
+	return exists, err
 }
 
 // processOrphans determines if there are any orphans which depend on the passed
@@ -55,11 +82,13 @@ func (b *BlockChain) blockExists(hash *wire.ShaHash) (bool, error) {
 //
 // The flags do not modify the behavior of this function directly, however they
 // are needed to pass along to maybeAcceptBlock.
-func (b *BlockChain) processOrphans(hash *wire.ShaHash, flags BehaviorFlags) error {
+//
+// This function MUST be called with the chain state lock held (for writes).
+func (b *BlockChain) processOrphans(hash *chainhash.Hash, flags BehaviorFlags) error {
 	// Start with processing at least the passed hash.  Leave a little room
 	// for additional orphan blocks that need to be processed without
 	// needing to grow the array in the common case.
-	processHashes := make([]*wire.ShaHash, 0, 10)
+	processHashes := make([]*chainhash.Hash, 0, 10)
 	processHashes = append(processHashes, hash)
 	for len(processHashes) > 0 {
 		// Pop the first hash to process from the slice.
@@ -85,12 +114,12 @@ func (b *BlockChain) processOrphans(hash *wire.ShaHash, flags BehaviorFlags) err
 			}
 
 			// Remove the orphan from the orphan pool.
-			orphanHash := orphan.block.Sha()
+			orphanHash := orphan.block.Hash()
 			b.removeOrphanBlock(orphan)
 			i--
 
 			// Potentially accept the block into the block chain.
-			err := b.maybeAcceptBlock(orphan.block, flags)
+			_, err := b.maybeAcceptBlock(orphan.block, flags)
 			if err != nil {
 				return err
 			}
@@ -109,36 +138,41 @@ func (b *BlockChain) processOrphans(hash *wire.ShaHash, flags BehaviorFlags) err
 // blocks, ensuring blocks follow all rules, orphan handling, and insertion into
 // the block chain along with best chain selection and reorganization.
 //
-// It returns a bool which indicates whether or not the block is an orphan and
-// any errors that occurred during processing.  The returned bool is only valid
-// when the error is nil.
-func (b *BlockChain) ProcessBlock(block *btcutil.Block, timeSource MedianTimeSource, flags BehaviorFlags) (bool, error) {
+// When no errors occurred during processing, the first return value indicates
+// whether or not the block is on the main chain and the second indicates
+// whether or not the block is an orphan.
+//
+// This function is safe for concurrent access.
+func (b *BlockChain) ProcessBlock(block *btcutil.Block, flags BehaviorFlags) (bool, bool, error) {
+	b.chainLock.Lock()
+	defer b.chainLock.Unlock()
+
 	fastAdd := flags&BFFastAdd == BFFastAdd
 	dryRun := flags&BFDryRun == BFDryRun
 
-	blockHash := block.Sha()
+	blockHash := block.Hash()
 	log.Tracef("Processing block %v", blockHash)
 
 	// The block must not already exist in the main chain or side chains.
 	exists, err := b.blockExists(blockHash)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	if exists {
 		str := fmt.Sprintf("already have block %v", blockHash)
-		return false, ruleError(ErrDuplicateBlock, str)
+		return false, false, ruleError(ErrDuplicateBlock, str)
 	}
 
 	// The block must not already exist as an orphan.
 	if _, exists := b.orphans[*blockHash]; exists {
 		str := fmt.Sprintf("already have block (orphan) %v", blockHash)
-		return false, ruleError(ErrDuplicateBlock, str)
+		return false, false, ruleError(ErrDuplicateBlock, str)
 	}
 
 	// Perform preliminary sanity checks on the block and its transactions.
-	err = checkBlockSanity(block, b.chainParams.PowLimit, timeSource, flags)
+	err = checkBlockSanity(block, b.chainParams.PowLimit, b.timeSource, flags)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	// Find the previous checkpoint and perform some additional checks based
@@ -150,7 +184,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, timeSource MedianTimeSou
 	blockHeader := &block.MsgBlock().Header
 	checkpointBlock, err := b.findPreviousCheckpoint()
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	if checkpointBlock != nil {
 		// Ensure the block timestamp is after the checkpoint timestamp.
@@ -160,7 +194,7 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, timeSource MedianTimeSou
 			str := fmt.Sprintf("block %v has timestamp %v before "+
 				"last checkpoint timestamp %v", blockHash,
 				blockHeader.Timestamp, checkpointTime)
-			return false, ruleError(ErrCheckpointTimeTooOld, str)
+			return false, false, ruleError(ErrCheckpointTimeTooOld, str)
 		}
 		if !fastAdd {
 			// Even though the checks prior to now have already ensured the
@@ -177,34 +211,32 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, timeSource MedianTimeSou
 				str := fmt.Sprintf("block target difficulty of %064x "+
 					"is too low when compared to the previous "+
 					"checkpoint", currentTarget)
-				return false, ruleError(ErrDifficultyTooLow, str)
+				return false, false, ruleError(ErrDifficultyTooLow, str)
 			}
 		}
 	}
 
 	// Handle orphan blocks.
 	prevHash := &blockHeader.PrevBlock
-	if !prevHash.IsEqual(zeroHash) {
-		prevHashExists, err := b.blockExists(prevHash)
-		if err != nil {
-			return false, err
+	prevHashExists, err := b.blockExists(prevHash)
+	if err != nil {
+		return false, false, err
+	}
+	if !prevHashExists {
+		if !dryRun {
+			log.Infof("Adding orphan block %v with parent %v",
+				blockHash, prevHash)
+			b.addOrphanBlock(block)
 		}
-		if !prevHashExists {
-			if !dryRun {
-				log.Infof("Adding orphan block %v with parent %v",
-					blockHash, prevHash)
-				b.addOrphanBlock(block)
-			}
 
-			return true, nil
-		}
+		return false, true, nil
 	}
 
 	// The block has passed all context independent checks and appears sane
 	// enough to potentially accept it into the block chain.
-	err = b.maybeAcceptBlock(block, flags)
+	isMainChain, err := b.maybeAcceptBlock(block, flags)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	// Don't process any orphans or log when the dry run flag is set.
@@ -214,11 +246,11 @@ func (b *BlockChain) ProcessBlock(block *btcutil.Block, timeSource MedianTimeSou
 		// there are no more.
 		err := b.processOrphans(blockHash, flags)
 		if err != nil {
-			return false, err
+			return false, false, err
 		}
 
 		log.Debugf("Accepted block %v", blockHash)
 	}
 
-	return false, nil
+	return isMainChain, false, nil
 }

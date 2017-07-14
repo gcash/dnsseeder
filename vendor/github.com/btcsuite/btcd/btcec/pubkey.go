@@ -25,8 +25,8 @@ func isOdd(a *big.Int) bool {
 // decompressPoint decompresses a point on the given curve given the X point and
 // the solution to use.
 func decompressPoint(curve *KoblitzCurve, x *big.Int, ybit bool) (*big.Int, error) {
-	// TODO(oga) This will probably only work for secp256k1 due to
-	// optimisations.
+	// TODO: This will probably only work for secp256k1 due to
+	// optimizations.
 
 	// Y = +-sqrt(x^3 + B)
 	x3 := new(big.Int).Mul(x, x)
@@ -151,6 +151,14 @@ func (p *PublicKey) SerializeHybrid() []byte {
 	b = append(b, format)
 	b = paddedAppend(32, b, p.X.Bytes())
 	return paddedAppend(32, b, p.Y.Bytes())
+}
+
+// IsEqual compares this PublicKey instance to the one passed, returning true if
+// both PublicKeys are equivalent. A PublicKey is equivalent to another, if they
+// both have the same X and Y coordinate.
+func (p *PublicKey) IsEqual(otherPubKey *PublicKey) bool {
+	return p.X.Cmp(otherPubKey.X) == 0 &&
+		p.Y.Cmp(otherPubKey.Y) == 0
 }
 
 // paddedAppend appends the src byte slice to dst, returning the new slice.

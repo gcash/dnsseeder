@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // JNetwork is the exported struct that is read from the network file
@@ -22,6 +23,8 @@ type JNetwork struct {
 	Seeder1   string
 	Seeder2   string
 	Seeder3   string
+	ServiceFilter []string
+	VersionFilter string
 }
 
 func createNetFile() {
@@ -112,10 +115,29 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 	seeder.seeders[1] = jnw.Seeder2
 	seeder.seeders[2] = jnw.Seeder3
 
+	// Parse service flags
+	var services []wire.ServiceFlag
+	for _, service := range jnw.ServiceFilter {
+		switch(strings.ToLower(service)) {
+		case "nodenetwork":
+			services = append(services, wire.SFNodeNetwork)
+		case "nodegetutxo":
+			services = append(services, wire.SFNodeGetUTXO)
+		case "nodebloom":
+			services = append(services, wire.SFNodeBloom)
+		case "nodewitness":
+			services = append(services, SFNodeWitness)
+		case "nodexthin":
+			services = append(services, SFNodeXThin)
+		}
+	}
+	seeder.serviceFilter = services
+	seeder.versionFilter = jnw.VersionFilter
+
 	// add some checks to the start & delay values to keep them sane
 	seeder.maxStart = []uint32{20, 20, 20, 30}
 	seeder.delay = []int64{210, 789, 234, 1876}
-	seeder.maxSize = 1250
+	seeder.maxSize = 5000
 
 	// initialize the stats counters
 	seeder.counts.NdStatus = make([]uint32, maxStatusTypes)

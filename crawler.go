@@ -1,13 +1,15 @@
 package main
 
 import (
-	"errors"
 	"log"
 	"net"
 	"strconv"
 	"time"
 
 	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/peer"
+	"errors"
 )
 
 type crawlError struct {
@@ -40,79 +42,49 @@ func crawlNode(rc chan *result, s *dnsseeder, nd *node) {
 
 // crawlIP retrievs a slice of ip addresses from a client
 func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
-
-	conn, err := net.DialTimeout("tcp", r.node, time.Second*10)
+	verack := make(chan struct{})
+	onAddr := make(chan *wire.MsgAddr)
+	peerCfg := &peer.Config{
+		UserAgentName:    "bitcoin-seeder",  // User agent name to advertise.
+		UserAgentVersion: "1.0.0", // User agent version to advertise.
+		ChainParams:      &chaincfg.MainNetParams,
+		Services:         0,
+		Listeners: peer.MessageListeners{
+			OnAddr:  func(p *peer.Peer, msg *wire.MsgAddr) {
+				onAddr <- msg
+			},
+			OnVersion: func(p *peer.Peer, msg *wire.MsgVersion) {
+				if config.debug {
+					log.Printf("%s - debug - %s - Remote version: %v\n", s.name, r.node, msg.ProtocolVersion)
+				}
+				// fill the node struct with the remote details
+				r.version = msg.ProtocolVersion
+				r.services = msg.Services
+				r.lastBlock = msg.LastBlock
+				r.strVersion = msg.UserAgent
+			},
+			OnVerAck: func(p *peer.Peer, msg *wire.MsgVerAck) {
+				verack <- struct{}{}
+			},
+		},
+	}
+	p, err := peer.NewOutboundPeer(peerCfg, r.node)
 	if err != nil {
-		if config.debug {
-			log.Printf("%s - debug - Could not connect to %s - %v\n", s.name, r.node, err)
-		}
-		return nil, &crawlError{"", err}
+		return nil, &crawlError{"NewOutboundPeer: error", err}
 	}
 
-	defer conn.Close()
-	if config.debug {
-		log.Printf("%s - debug - Connected to remote address: %s\n", s.name, r.node)
-	}
-
-	// set a deadline for all comms to be done by. After this all i/o will error
-	conn.SetDeadline(time.Now().Add(time.Second * maxTo))
-
-	// First command to remote end needs to be a version command
-	// last parameter is lastblock
-	msgver, err := wire.NewMsgVersionFromConn(conn, nounce, 0)
+	// Establish the connection to the peer address and mark it connected.
+	conn, err := net.Dial("tcp", p.Addr())
 	if err != nil {
-		return nil, &crawlError{"Create NewMsgVersionFromConn", err}
+		return nil, &crawlError{"net.Dial: error", err}
 	}
+	p.AssociateConnection(conn)
 
-	err = wire.WriteMessage(conn, msgver, s.pver, s.id)
-	if err != nil {
-		// Log and handle the error
-		return nil, &crawlError{"Write Version Message", err}
-	}
-
-	// first message received should be version
-	msg, _, err := wire.ReadMessage(conn, s.pver, s.id)
-	if err != nil {
-		// Log and handle the error
-		return nil, &crawlError{"Read message after sending Version", err}
-	}
-
-	switch msg := msg.(type) {
-	case *wire.MsgVersion:
-		// The message is a pointer to a MsgVersion struct.
-		if config.debug {
-			log.Printf("%s - debug - %s - Remote version: %v\n", s.name, r.node, msg.ProtocolVersion)
-		}
-		// fill the node struct with the remote details
-		r.version = msg.ProtocolVersion
-		r.services = msg.Services
-		r.lastBlock = msg.LastBlock
-		r.strVersion = msg.UserAgent
-	default:
-		return nil, &crawlError{"Did not receive expected Version message from remote client", errors.New("")}
-	}
-
-	// send verack command
-	msgverack := wire.NewMsgVerAck()
-
-	err = wire.WriteMessage(conn, msgverack, s.pver, s.id)
-	if err != nil {
-		return nil, &crawlError{"writing message VerAck", err}
-	}
-
-	// second message received should be verack
-	msg, _, err = wire.ReadMessage(conn, s.pver, s.id)
-	if err != nil {
-		return nil, &crawlError{"reading expected Ver Ack from remote client", err}
-	}
-
-	switch msg.(type) {
-	case *wire.MsgVerAck:
-		if config.debug {
-			log.Printf("%s - debug - %s - received Version Ack\n", s.name, r.node)
-		}
-	default:
-		return nil, &crawlError{"Did not receive expected Ver Ack message from remote client", errors.New("")}
+	// Wait for the verack message or timeout in case of failure.
+	select {
+	case <-verack:
+	case <-time.After(time.Second * 3):
+		return nil, &crawlError{"Verack timeout", errors.New("")}
 	}
 
 	// if we get this far and if the seeder is full then don't ask for addresses. This will reduce bandwith usage while still
@@ -120,47 +92,20 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	if len(s.theList) > s.maxSize {
 		return nil, nil
 	}
+
 	// send getaddr command
-	msgGetAddr := wire.NewMsgGetAddr()
+	p.QueueMessage(wire.NewMsgGetAddr(), nil)
 
-	err = wire.WriteMessage(conn, msgGetAddr, s.pver, s.id)
-	if err != nil {
-		return nil, &crawlError{"writing Addr message to remote client", err}
+	var addrMsg *wire.MsgAddr
+	select {
+	case addrMsg = <-onAddr:
+	case <-time.After(time.Second * 3):
+		return nil, &crawlError{"GetAddr timeout", errors.New("")}
 	}
 
-	c := 0
-	dowhile := true
-	for dowhile == true {
+	// Disconnect the peer.
+	p.Disconnect()
+	p.WaitForDisconnect()
 
-		// Using the Bitcoin lib for the some networks means it does not understand some
-		// of the commands and will error. We can ignore these as we are only
-		// interested in the addr message and its content.
-		msgaddr, _, _ := wire.ReadMessage(conn, s.pver, s.id)
-		if msgaddr != nil {
-			switch msg := msgaddr.(type) {
-			case *wire.MsgAddr:
-				// received the addr message so return the result
-				if config.debug {
-					log.Printf("%s - debug - %s - received valid addr message\n", s.name, r.node)
-				}
-				dowhile = false
-				return msg.AddrList, nil
-			default:
-				if config.debug {
-					log.Printf("%s - debug - %s - ignoring message - %v\n", s.name, r.node, msg.Command())
-				}
-			}
-		}
-		// if we get more than 25 messages before the addr we asked for then give up on this client
-		if c++; c >= 25 {
-			dowhile = false
-		}
-	}
-
-	// received too many messages before requested Addr
-	return nil, &crawlError{"message loop - did not receive remote addresses in first 25 messages from remote client", errors.New("")}
+	return addrMsg.AddrList, nil
 }
-
-/*
-
- */

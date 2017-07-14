@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 The btcsuite developers
+// Copyright (c) 2013-2016 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 )
 
 // defaultTransactionAlloc is the default size used for the backing array
@@ -64,7 +66,7 @@ func (msg *MsgBlock) BtcDecode(r io.Reader, pver uint32) error {
 		return err
 	}
 
-	txCount, err := readVarInt(r, pver)
+	txCount, err := ReadVarInt(r, pver)
 	if err != nil {
 		return err
 	}
@@ -122,7 +124,7 @@ func (msg *MsgBlock) DeserializeTxLoc(r *bytes.Buffer) ([]TxLoc, error) {
 		return nil, err
 	}
 
-	txCount, err := readVarInt(r, 0)
+	txCount, err := ReadVarInt(r, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +166,7 @@ func (msg *MsgBlock) BtcEncode(w io.Writer, pver uint32) error {
 		return err
 	}
 
-	err = writeVarInt(w, pver, uint64(len(msg.Transactions)))
+	err = WriteVarInt(w, pver, uint64(len(msg.Transactions)))
 	if err != nil {
 		return err
 	}
@@ -224,18 +226,18 @@ func (msg *MsgBlock) MaxPayloadLength(pver uint32) uint32 {
 	return MaxBlockPayload
 }
 
-// BlockSha computes the block identifier hash for this block.
-func (msg *MsgBlock) BlockSha() ShaHash {
-	return msg.Header.BlockSha()
+// BlockHash computes the block identifier hash for this block.
+func (msg *MsgBlock) BlockHash() chainhash.Hash {
+	return msg.Header.BlockHash()
 }
 
-// TxShas returns a slice of hashes of all of transactions in this block.
-func (msg *MsgBlock) TxShas() ([]ShaHash, error) {
-	shaList := make([]ShaHash, 0, len(msg.Transactions))
+// TxHashes returns a slice of hashes of all of transactions in this block.
+func (msg *MsgBlock) TxHashes() ([]chainhash.Hash, error) {
+	hashList := make([]chainhash.Hash, 0, len(msg.Transactions))
 	for _, tx := range msg.Transactions {
-		shaList = append(shaList, tx.TxSha())
+		hashList = append(hashList, tx.TxHash())
 	}
-	return shaList, nil
+	return hashList, nil
 }
 
 // NewMsgBlock returns a new bitcoin block message that conforms to the

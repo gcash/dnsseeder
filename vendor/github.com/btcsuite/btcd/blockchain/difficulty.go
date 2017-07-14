@@ -1,46 +1,14 @@
-// Copyright (c) 2013-2014 The btcsuite developers
+// Copyright (c) 2013-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package blockchain
 
 import (
-	"fmt"
 	"math/big"
 	"time"
 
-	"github.com/btcsuite/btcd/wire"
-)
-
-const (
-	// targetTimespan is the desired amount of time that should elapse
-	// before block difficulty requirement is examined to determine how
-	// it should be changed in order to maintain the desired block
-	// generation rate.
-	targetTimespan = time.Hour * 24 * 14
-
-	// targetSpacing is the desired amount of time to generate each block.
-	targetSpacing = time.Minute * 10
-
-	// BlocksPerRetarget is the number of blocks between each difficulty
-	// retarget.  It is calculated based on the desired block generation
-	// rate.
-	BlocksPerRetarget = int64(targetTimespan / targetSpacing)
-
-	// retargetAdjustmentFactor is the adjustment factor used to limit
-	// the minimum and maximum amount of adjustment that can occur between
-	// difficulty retargets.
-	retargetAdjustmentFactor = 4
-
-	// minRetargetTimespan is the minimum amount of adjustment that can
-	// occur between difficulty retargets.  It equates to 25% of the
-	// previous difficulty.
-	minRetargetTimespan = int64(targetTimespan / retargetAdjustmentFactor)
-
-	// maxRetargetTimespan is the maximum amount of adjustment that can
-	// occur between difficulty retargets.  It equates to 400% of the
-	// previous difficulty.
-	maxRetargetTimespan = int64(targetTimespan * retargetAdjustmentFactor)
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 )
 
 var (
@@ -53,11 +21,11 @@ var (
 	oneLsh256 = new(big.Int).Lsh(bigOne, 256)
 )
 
-// ShaHashToBig converts a wire.ShaHash into a big.Int that can be used to
+// HashToBig converts a chainhash.Hash into a big.Int that can be used to
 // perform math comparisons.
-func ShaHashToBig(hash *wire.ShaHash) *big.Int {
-	// A ShaHash is in little-endian, but the big package wants the bytes
-	// in big-endian, so reverse them.
+func HashToBig(hash *chainhash.Hash) *big.Int {
+	// A Hash is in little-endian, but the big package wants the bytes in
+	// big-endian, so reverse them.
 	buf := *hash
 	blen := len(buf)
 	for i := 0; i < blen/2; i++ {
@@ -163,7 +131,7 @@ func BigToCompact(n *big.Int) uint32 {
 // CalcWork calculates a work value from difficulty bits.  Bitcoin increases
 // the difficulty for generating a block by decreasing the value which the
 // generated hash must be less than.  This difficulty target is stored in each
-// block header using a compact representation as described in the documenation
+// block header using a compact representation as described in the documentation
 // for CompactToBig.  The main chain is selected by choosing the chain that has
 // the most proof of work (highest difficulty).  Since a lower target difficulty
 // value equates to higher actual difficulty, the work value which will be
@@ -190,14 +158,16 @@ func CalcWork(bits uint32) *big.Int {
 // known good checkpoint.
 func (b *BlockChain) calcEasiestDifficulty(bits uint32, duration time.Duration) uint32 {
 	// Convert types used in the calculations below.
-	durationVal := int64(duration)
-	adjustmentFactor := big.NewInt(retargetAdjustmentFactor)
+	durationVal := int64(duration / time.Second)
+	adjustmentFactor := big.NewInt(b.chainParams.RetargetAdjustmentFactor)
 
 	// The test network rules allow minimum difficulty blocks after more
 	// than twice the desired amount of time needed to generate a block has
 	// elapsed.
-	if b.chainParams.ResetMinDifficulty {
-		if durationVal > int64(targetSpacing)*2 {
+	if b.chainParams.ReduceMinDifficulty {
+		reductionTime := int64(b.chainParams.MinDiffReductionTime /
+			time.Second)
+		if durationVal > reductionTime {
 			return b.chainParams.PowLimitBits
 		}
 	}
@@ -209,7 +179,7 @@ func (b *BlockChain) calcEasiestDifficulty(bits uint32, duration time.Duration) 
 	newTarget := CompactToBig(bits)
 	for durationVal > 0 && newTarget.Cmp(b.chainParams.PowLimit) < 0 {
 		newTarget.Mul(newTarget, adjustmentFactor)
-		durationVal -= maxRetargetTimespan
+		durationVal -= b.maxRetargetTimespan
 	}
 
 	// Limit new value to the proof of work limit.
@@ -222,11 +192,13 @@ func (b *BlockChain) calcEasiestDifficulty(bits uint32, duration time.Duration) 
 
 // findPrevTestNetDifficulty returns the difficulty of the previous block which
 // did not have the special testnet minimum difficulty rule applied.
+//
+// This function MUST be called with the chain state lock held (for writes).
 func (b *BlockChain) findPrevTestNetDifficulty(startNode *blockNode) (uint32, error) {
 	// Search backwards through the chain for the last block without
 	// the special rule applied.
 	iterNode := startNode
-	for iterNode != nil && iterNode.height%BlocksPerRetarget != 0 &&
+	for iterNode != nil && iterNode.height%b.blocksPerRetarget != 0 &&
 		iterNode.bits == b.chainParams.PowLimitBits {
 
 		// Get the previous block node.  This function is used over
@@ -235,9 +207,9 @@ func (b *BlockChain) findPrevTestNetDifficulty(startNode *blockNode) (uint32, er
 		// helps allow only the pieces of the chain that are needed
 		// to remain in memory.
 		var err error
-		iterNode, err = b.getPrevNodeFromNode(iterNode)
+		iterNode, err = b.index.PrevNodeFromNode(iterNode)
 		if err != nil {
-			log.Errorf("getPrevNodeFromNode: %v", err)
+			log.Errorf("PrevNodeFromNode: %v", err)
 			return 0, err
 		}
 	}
@@ -256,6 +228,8 @@ func (b *BlockChain) findPrevTestNetDifficulty(startNode *blockNode) (uint32, er
 // This function differs from the exported CalcNextRequiredDifficulty in that
 // the exported version uses the current best chain as the previous block node
 // while this function accepts any block node.
+//
+// This function MUST be called with the chain state lock held (for writes).
 func (b *BlockChain) calcNextRequiredDifficulty(lastNode *blockNode, newBlockTime time.Time) (uint32, error) {
 	// Genesis block.
 	if lastNode == nil {
@@ -264,16 +238,17 @@ func (b *BlockChain) calcNextRequiredDifficulty(lastNode *blockNode, newBlockTim
 
 	// Return the previous block's difficulty requirements if this block
 	// is not at a difficulty retarget interval.
-	if (lastNode.height+1)%BlocksPerRetarget != 0 {
-		// The test network rules allow minimum difficulty blocks after
-		// more than twice the desired amount of time needed to generate
-		// a block has elapsed.
-		if b.chainParams.ResetMinDifficulty {
-			// Return minimum difficulty when more than twice the
-			// desired amount of time needed to generate a block has
-			// elapsed.
-			allowMinTime := lastNode.timestamp.Add(targetSpacing * 2)
-			if newBlockTime.After(allowMinTime) {
+	if (lastNode.height+1)%b.blocksPerRetarget != 0 {
+		// For networks that support it, allow special reduction of the
+		// required difficulty once too much time has elapsed without
+		// mining a block.
+		if b.chainParams.ReduceMinDifficulty {
+			// Return minimum difficulty when more than the desired
+			// amount of time has elapsed without mining a block.
+			reductionTime := int64(b.chainParams.MinDiffReductionTime /
+				time.Second)
+			allowMinTime := lastNode.timestamp + reductionTime
+			if newBlockTime.Unix() > allowMinTime {
 				return b.chainParams.PowLimitBits, nil
 			}
 
@@ -295,31 +270,31 @@ func (b *BlockChain) calcNextRequiredDifficulty(lastNode *blockNode, newBlockTim
 	// Get the block node at the previous retarget (targetTimespan days
 	// worth of blocks).
 	firstNode := lastNode
-	for i := int64(0); i < BlocksPerRetarget-1 && firstNode != nil; i++ {
+	for i := int32(0); i < b.blocksPerRetarget-1 && firstNode != nil; i++ {
 		// Get the previous block node.  This function is used over
 		// simply accessing firstNode.parent directly as it will
 		// dynamically create previous block nodes as needed.  This
 		// helps allow only the pieces of the chain that are needed
 		// to remain in memory.
 		var err error
-		firstNode, err = b.getPrevNodeFromNode(firstNode)
+		firstNode, err = b.index.PrevNodeFromNode(firstNode)
 		if err != nil {
 			return 0, err
 		}
 	}
 
 	if firstNode == nil {
-		return 0, fmt.Errorf("unable to obtain previous retarget block")
+		return 0, AssertError("unable to obtain previous retarget block")
 	}
 
 	// Limit the amount of adjustment that can occur to the previous
 	// difficulty.
-	actualTimespan := lastNode.timestamp.UnixNano() - firstNode.timestamp.UnixNano()
+	actualTimespan := lastNode.timestamp - firstNode.timestamp
 	adjustedTimespan := actualTimespan
-	if actualTimespan < minRetargetTimespan {
-		adjustedTimespan = minRetargetTimespan
-	} else if actualTimespan > maxRetargetTimespan {
-		adjustedTimespan = maxRetargetTimespan
+	if actualTimespan < b.minRetargetTimespan {
+		adjustedTimespan = b.minRetargetTimespan
+	} else if actualTimespan > b.maxRetargetTimespan {
+		adjustedTimespan = b.maxRetargetTimespan
 	}
 
 	// Calculate new target difficulty as:
@@ -329,7 +304,8 @@ func (b *BlockChain) calcNextRequiredDifficulty(lastNode *blockNode, newBlockTim
 	// result.
 	oldTarget := CompactToBig(lastNode.bits)
 	newTarget := new(big.Int).Mul(oldTarget, big.NewInt(adjustedTimespan))
-	newTarget.Div(newTarget, big.NewInt(int64(targetTimespan)))
+	targetTimeSpan := int64(b.chainParams.TargetTimespan / time.Second)
+	newTarget.Div(newTarget, big.NewInt(targetTimeSpan))
 
 	// Limit new value to the proof of work limit.
 	if newTarget.Cmp(b.chainParams.PowLimit) > 0 {
@@ -345,8 +321,9 @@ func (b *BlockChain) calcNextRequiredDifficulty(lastNode *blockNode, newBlockTim
 	log.Debugf("Old target %08x (%064x)", lastNode.bits, oldTarget)
 	log.Debugf("New target %08x (%064x)", newTargetBits, CompactToBig(newTargetBits))
 	log.Debugf("Actual timespan %v, adjusted timespan %v, target timespan %v",
-		time.Duration(actualTimespan), time.Duration(adjustedTimespan),
-		targetTimespan)
+		time.Duration(actualTimespan)*time.Second,
+		time.Duration(adjustedTimespan)*time.Second,
+		b.chainParams.TargetTimespan)
 
 	return newTargetBits, nil
 }
@@ -355,7 +332,10 @@ func (b *BlockChain) calcNextRequiredDifficulty(lastNode *blockNode, newBlockTim
 // after the end of the current best chain based on the difficulty retarget
 // rules.
 //
-// This function is NOT safe for concurrent access.
+// This function is safe for concurrent access.
 func (b *BlockChain) CalcNextRequiredDifficulty(timestamp time.Time) (uint32, error) {
-	return b.calcNextRequiredDifficulty(b.bestChain, timestamp)
+	b.chainLock.Lock()
+	difficulty, err := b.calcNextRequiredDifficulty(b.bestNode, timestamp)
+	b.chainLock.Unlock()
+	return difficulty, err
 }

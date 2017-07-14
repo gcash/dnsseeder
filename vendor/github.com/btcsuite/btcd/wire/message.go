@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 The btcsuite developers
+// Copyright (c) 2013-2016 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"unicode/utf8"
+
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 )
 
 // MessageHeaderSize is the number of bytes in a bitcoin message header.
@@ -47,6 +49,8 @@ const (
 	CmdFilterLoad  = "filterload"
 	CmdMerkleBlock = "merkleblock"
 	CmdReject      = "reject"
+	CmdSendHeaders = "sendheaders"
+	CmdFeeFilter   = "feefilter"
 )
 
 // Message is an interface that describes a bitcoin message.  A type that
@@ -127,6 +131,12 @@ func makeEmptyMessage(command string) (Message, error) {
 
 	case CmdReject:
 		msg = &MsgReject{}
+
+	case CmdSendHeaders:
+		msg = &MsgSendHeaders{}
+
+	case CmdFeeFilter:
+		msg = &MsgFeeFilter{}
 
 	default:
 		return nil, fmt.Errorf("unhandled command [%s]", command)
@@ -233,7 +243,7 @@ func WriteMessageN(w io.Writer, msg Message, pver uint32, btcnet BitcoinNet) (in
 	hdr.magic = btcnet
 	hdr.command = cmd
 	hdr.length = uint32(lenp)
-	copy(hdr.checksum[:], DoubleSha256(payload)[0:4])
+	copy(hdr.checksum[:], chainhash.DoubleHashB(payload)[0:4])
 
 	// Encode the header for the message.  This is done to a buffer
 	// rather than directly to the writer since writeElements doesn't
@@ -243,21 +253,15 @@ func WriteMessageN(w io.Writer, msg Message, pver uint32, btcnet BitcoinNet) (in
 
 	// Write header.
 	n, err := w.Write(hw.Bytes())
+	totalBytes += n
 	if err != nil {
-		totalBytes += n
 		return totalBytes, err
 	}
-	totalBytes += n
 
 	// Write payload.
 	n, err = w.Write(payload)
-	if err != nil {
-		totalBytes += n
-		return totalBytes, err
-	}
 	totalBytes += n
-
-	return totalBytes, nil
+	return totalBytes, err
 }
 
 // WriteMessage writes a bitcoin Message to w including the necessary header
@@ -278,11 +282,10 @@ func WriteMessage(w io.Writer, msg Message, pver uint32, btcnet BitcoinNet) erro
 func ReadMessageN(r io.Reader, pver uint32, btcnet BitcoinNet) (int, Message, []byte, error) {
 	totalBytes := 0
 	n, hdr, err := readMessageHeader(r)
+	totalBytes += n
 	if err != nil {
-		totalBytes += n
 		return totalBytes, nil, nil, err
 	}
-	totalBytes += n
 
 	// Enforce maximum message payload.
 	if hdr.length > MaxMessagePayload {
@@ -331,14 +334,13 @@ func ReadMessageN(r io.Reader, pver uint32, btcnet BitcoinNet) (int, Message, []
 	// Read payload.
 	payload := make([]byte, hdr.length)
 	n, err = io.ReadFull(r, payload)
+	totalBytes += n
 	if err != nil {
-		totalBytes += n
 		return totalBytes, nil, nil, err
 	}
-	totalBytes += n
 
 	// Test checksum.
-	checksum := DoubleSha256(payload)[0:4]
+	checksum := chainhash.DoubleHashB(payload)[0:4]
 	if !bytes.Equal(checksum[:], hdr.checksum[:]) {
 		str := fmt.Sprintf("payload checksum failed - header "+
 			"indicates %v, but actual checksum is %v.",

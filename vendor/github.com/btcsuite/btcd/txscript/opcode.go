@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 The btcsuite developers
+// Copyright (c) 2013-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -7,18 +7,19 @@ package txscript
 import (
 	"bytes"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"hash"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/fastsha256"
 	"github.com/btcsuite/golangcrypto/ripemd160"
 )
 
-// An opcode defines the information related to a txscript opcode.  opfunc if
-// present is the function to call to perform the opcode on the script.  The
+// An opcode defines the information related to a txscript opcode.  opfunc, if
+// present, is the function to call to perform the opcode on the script.  The
 // current script is passed in as a slice with the first member being the opcode
 // itself.
 type opcode struct {
@@ -212,7 +213,9 @@ const (
 	OP_CHECKMULTISIGVERIFY = 0xaf // 175
 	OP_NOP1                = 0xb0 // 176
 	OP_NOP2                = 0xb1 // 177
+	OP_CHECKLOCKTIMEVERIFY = 0xb1 // 177 - AKA OP_NOP2
 	OP_NOP3                = 0xb2 // 178
+	OP_CHECKSEQUENCEVERIFY = 0xb2 // 178 - AKA OP_NOP3
 	OP_NOP4                = 0xb3 // 179
 	OP_NOP5                = 0xb4 // 180
 	OP_NOP6                = 0xb5 // 181
@@ -283,7 +286,7 @@ const (
 	OP_UNKNOWN246          = 0xf6 // 246
 	OP_UNKNOWN247          = 0xf7 // 247
 	OP_UNKNOWN248          = 0xf8 // 248
-	OP_SMALLDATA           = 0xf9 // 249 - bitcoin core internal
+	OP_UNKNOWN249          = 0xf9 // 249
 	OP_SMALLINTEGER        = 0xfa // 250 - bitcoin core internal
 	OP_PUBKEYS             = 0xfb // 251 - bitcoin core internal
 	OP_UNKNOWN252          = 0xfc // 252
@@ -403,16 +406,18 @@ var opcodeArray = [256]opcode{
 	OP_16:        {OP_16, "OP_16", 1, opcodeN},
 
 	// Control opcodes.
-	OP_NOP:      {OP_NOP, "OP_NOP", 1, opcodeNop},
-	OP_VER:      {OP_VER, "OP_VER", 1, opcodeReserved},
-	OP_IF:       {OP_IF, "OP_IF", 1, opcodeIf},
-	OP_NOTIF:    {OP_NOTIF, "OP_NOTIF", 1, opcodeNotIf},
-	OP_VERIF:    {OP_VERIF, "OP_VERIF", 1, opcodeReserved},
-	OP_VERNOTIF: {OP_VERNOTIF, "OP_VERNOTIF", 1, opcodeReserved},
-	OP_ELSE:     {OP_ELSE, "OP_ELSE", 1, opcodeElse},
-	OP_ENDIF:    {OP_ENDIF, "OP_ENDIF", 1, opcodeEndif},
-	OP_VERIFY:   {OP_VERIFY, "OP_VERIFY", 1, opcodeVerify},
-	OP_RETURN:   {OP_RETURN, "OP_RETURN", 1, opcodeReturn},
+	OP_NOP:                 {OP_NOP, "OP_NOP", 1, opcodeNop},
+	OP_VER:                 {OP_VER, "OP_VER", 1, opcodeReserved},
+	OP_IF:                  {OP_IF, "OP_IF", 1, opcodeIf},
+	OP_NOTIF:               {OP_NOTIF, "OP_NOTIF", 1, opcodeNotIf},
+	OP_VERIF:               {OP_VERIF, "OP_VERIF", 1, opcodeReserved},
+	OP_VERNOTIF:            {OP_VERNOTIF, "OP_VERNOTIF", 1, opcodeReserved},
+	OP_ELSE:                {OP_ELSE, "OP_ELSE", 1, opcodeElse},
+	OP_ENDIF:               {OP_ENDIF, "OP_ENDIF", 1, opcodeEndif},
+	OP_VERIFY:              {OP_VERIFY, "OP_VERIFY", 1, opcodeVerify},
+	OP_RETURN:              {OP_RETURN, "OP_RETURN", 1, opcodeReturn},
+	OP_CHECKLOCKTIMEVERIFY: {OP_CHECKLOCKTIMEVERIFY, "OP_CHECKLOCKTIMEVERIFY", 1, opcodeCheckLockTimeVerify},
+	OP_CHECKSEQUENCEVERIFY: {OP_CHECKSEQUENCEVERIFY, "OP_CHECKSEQUENCEVERIFY", 1, opcodeCheckSequenceVerify},
 
 	// Stack opcodes.
 	OP_TOALTSTACK:   {OP_TOALTSTACK, "OP_TOALTSTACK", 1, opcodeToAltStack},
@@ -495,8 +500,6 @@ var opcodeArray = [256]opcode{
 
 	// Reserved opcodes.
 	OP_NOP1:  {OP_NOP1, "OP_NOP1", 1, opcodeNop},
-	OP_NOP2:  {OP_NOP2, "OP_NOP2", 1, opcodeNop},
-	OP_NOP3:  {OP_NOP3, "OP_NOP3", 1, opcodeNop},
 	OP_NOP4:  {OP_NOP4, "OP_NOP4", 1, opcodeNop},
 	OP_NOP5:  {OP_NOP5, "OP_NOP5", 1, opcodeNop},
 	OP_NOP6:  {OP_NOP6, "OP_NOP6", 1, opcodeNop},
@@ -569,9 +572,9 @@ var opcodeArray = [256]opcode{
 	OP_UNKNOWN246: {OP_UNKNOWN246, "OP_UNKNOWN246", 1, opcodeInvalid},
 	OP_UNKNOWN247: {OP_UNKNOWN247, "OP_UNKNOWN247", 1, opcodeInvalid},
 	OP_UNKNOWN248: {OP_UNKNOWN248, "OP_UNKNOWN248", 1, opcodeInvalid},
+	OP_UNKNOWN249: {OP_UNKNOWN249, "OP_UNKNOWN249", 1, opcodeInvalid},
 
 	// Bitcoin Core internal use opcode.  Defined here for completeness.
-	OP_SMALLDATA:    {OP_SMALLDATA, "OP_SMALLDATA", 1, opcodeInvalid},
 	OP_SMALLINTEGER: {OP_SMALLINTEGER, "OP_SMALLINTEGER", 1, opcodeInvalid},
 	OP_PUBKEYS:      {OP_PUBKEYS, "OP_PUBKEYS", 1, opcodeInvalid},
 	OP_UNKNOWN252:   {OP_UNKNOWN252, "OP_UNKNOWN252", 1, opcodeInvalid},
@@ -694,28 +697,45 @@ func (pop *parsedOpcode) checkMinimalDataPush() error {
 	opcode := pop.opcode.value
 
 	if dataLen == 0 && opcode != OP_0 {
-		return ErrStackMinimalData
+		str := fmt.Sprintf("zero length data push is encoded with "+
+			"opcode %s instead of OP_0", pop.opcode.name)
+		return scriptError(ErrMinimalData, str)
 	} else if dataLen == 1 && data[0] >= 1 && data[0] <= 16 {
 		if opcode != OP_1+data[0]-1 {
 			// Should have used OP_1 .. OP_16
-			return ErrStackMinimalData
+			str := fmt.Sprintf("data push of the value %d encoded "+
+				"with opcode %s instead of OP_%d", data[0],
+				pop.opcode.name, data[0])
+			return scriptError(ErrMinimalData, str)
 		}
 	} else if dataLen == 1 && data[0] == 0x81 {
 		if opcode != OP_1NEGATE {
-			return ErrStackMinimalData
+			str := fmt.Sprintf("data push of the value -1 encoded "+
+				"with opcode %s instead of OP_1NEGATE",
+				pop.opcode.name)
+			return scriptError(ErrMinimalData, str)
 		}
 	} else if dataLen <= 75 {
 		if int(opcode) != dataLen {
 			// Should have used a direct push
-			return ErrStackMinimalData
+			str := fmt.Sprintf("data push of %d bytes encoded "+
+				"with opcode %s instead of OP_DATA_%d", dataLen,
+				pop.opcode.name, dataLen)
+			return scriptError(ErrMinimalData, str)
 		}
 	} else if dataLen <= 255 {
 		if opcode != OP_PUSHDATA1 {
-			return ErrStackMinimalData
+			str := fmt.Sprintf("data push of %d bytes encoded "+
+				"with opcode %s instead of OP_PUSHDATA1",
+				dataLen, pop.opcode.name)
+			return scriptError(ErrMinimalData, str)
 		}
 	} else if dataLen <= 65535 {
 		if opcode != OP_PUSHDATA2 {
-			return ErrStackMinimalData
+			str := fmt.Sprintf("data push of %d bytes encoded "+
+				"with opcode %s instead of OP_PUSHDATA2",
+				dataLen, pop.opcode.name)
+			return scriptError(ErrMinimalData, str)
 		}
 	}
 	return nil
@@ -776,7 +796,11 @@ func (pop *parsedOpcode) bytes() ([]byte, error) {
 	retbytes[0] = pop.opcode.value
 	if pop.opcode.length == 1 {
 		if len(pop.data) != 0 {
-			return nil, ErrStackInvalidOpcode
+			str := fmt.Sprintf("internal consistency error - "+
+				"parsed opcode %s has data length %d when %d "+
+				"was expected", pop.opcode.name, len(pop.data),
+				0)
+			return nil, scriptError(ErrInternal, str)
 		}
 		return retbytes, nil
 	}
@@ -805,7 +829,10 @@ func (pop *parsedOpcode) bytes() ([]byte, error) {
 	retbytes = append(retbytes, pop.data...)
 
 	if len(retbytes) != nbytes {
-		return nil, ErrStackInvalidOpcode
+		str := fmt.Sprintf("internal consistency error - "+
+			"parsed opcode %s has data length %d when %d was "+
+			"expected", pop.opcode.name, len(retbytes), nbytes)
+		return nil, scriptError(ErrInternal, str)
 	}
 
 	return retbytes, nil
@@ -822,19 +849,25 @@ func (pop *parsedOpcode) bytes() ([]byte, error) {
 // dictate the script doesn't fail until the program counter passes over a
 // disabled opcode (even when they appear in a branch that is not executed).
 func opcodeDisabled(op *parsedOpcode, vm *Engine) error {
-	return ErrStackOpDisabled
+	str := fmt.Sprintf("attempt to execute disabled opcode %s",
+		op.opcode.name)
+	return scriptError(ErrDisabledOpcode, str)
 }
 
 // opcodeReserved is a common handler for all reserved opcodes.  It returns an
 // appropriate error indicating the opcode is reserved.
 func opcodeReserved(op *parsedOpcode, vm *Engine) error {
-	return ErrStackReservedOpcode
+	str := fmt.Sprintf("attempt to execute reserved opcode %s",
+		op.opcode.name)
+	return scriptError(ErrReservedOpcode, str)
 }
 
-// opcodeReserved is a common handler for all invalid opcodes.  It returns an
+// opcodeInvalid is a common handler for all invalid opcodes.  It returns an
 // appropriate error indicating the opcode is invalid.
 func opcodeInvalid(op *parsedOpcode, vm *Engine) error {
-	return ErrStackInvalidOpcode
+	str := fmt.Sprintf("attempt to execute invalid opcode %s",
+		op.opcode.name)
+	return scriptError(ErrReservedOpcode, str)
 }
 
 // opcodeFalse pushes an empty array to the data stack to represent false.  Note
@@ -873,11 +906,12 @@ func opcodeN(op *parsedOpcode, vm *Engine) error {
 // the flag to discourage use of NOPs is set for select opcodes.
 func opcodeNop(op *parsedOpcode, vm *Engine) error {
 	switch op.opcode.value {
-	case OP_NOP1, OP_NOP2, OP_NOP3, OP_NOP4, OP_NOP5,
+	case OP_NOP1, OP_NOP4, OP_NOP5,
 		OP_NOP6, OP_NOP7, OP_NOP8, OP_NOP9, OP_NOP10:
 		if vm.hasFlag(ScriptDiscourageUpgradableNops) {
-			return fmt.Errorf("OP_NOP%d reserved for soft-fork "+
+			str := fmt.Sprintf("OP_NOP%d reserved for soft-fork "+
 				"upgrades", op.opcode.value-(OP_NOP1-1))
+			return scriptError(ErrDiscourageUpgradableNOPs, str)
 		}
 	}
 	return nil
@@ -955,7 +989,9 @@ func opcodeNotIf(op *parsedOpcode, vm *Engine) error {
 // Conditional stack transformation: [... OpCondValue] -> [... !OpCondValue]
 func opcodeElse(op *parsedOpcode, vm *Engine) error {
 	if len(vm.condStack) == 0 {
-		return ErrStackNoIf
+		str := fmt.Sprintf("encountered opcode %s with no matching "+
+			"opcode to begin conditional execution", op.opcode.name)
+		return scriptError(ErrUnbalancedConditional, str)
 	}
 
 	conditionalIdx := len(vm.condStack) - 1
@@ -979,31 +1015,215 @@ func opcodeElse(op *parsedOpcode, vm *Engine) error {
 // Conditional stack transformation: [... OpCondValue] -> [...]
 func opcodeEndif(op *parsedOpcode, vm *Engine) error {
 	if len(vm.condStack) == 0 {
-		return ErrStackNoIf
+		str := fmt.Sprintf("encountered opcode %s with no matching "+
+			"opcode to begin conditional execution", op.opcode.name)
+		return scriptError(ErrUnbalancedConditional, str)
 	}
 
 	vm.condStack = vm.condStack[:len(vm.condStack)-1]
 	return nil
 }
 
-// opcodeVerify examines the top item on the data stack as a boolean value and
-// verifies it evaluates to true.  An error is returned if it does not.
-func opcodeVerify(op *parsedOpcode, vm *Engine) error {
+// abstractVerify examines the top item on the data stack as a boolean value and
+// verifies it evaluates to true.  An error is returned either when there is no
+// item on the stack or when that item evaluates to false.  In the latter case
+// where the verification fails specifically due to the top item evaluating
+// to false, the returned error will use the passed error code.
+func abstractVerify(op *parsedOpcode, vm *Engine, c ErrorCode) error {
 	verified, err := vm.dstack.PopBool()
 	if err != nil {
 		return err
 	}
 
-	if verified != true {
-		return ErrStackVerifyFailed
+	if !verified {
+		str := fmt.Sprintf("%s failed", op.opcode.name)
+		return scriptError(c, str)
 	}
 	return nil
+}
+
+// opcodeVerify examines the top item on the data stack as a boolean value and
+// verifies it evaluates to true.  An error is returned if it does not.
+func opcodeVerify(op *parsedOpcode, vm *Engine) error {
+	return abstractVerify(op, vm, ErrVerify)
 }
 
 // opcodeReturn returns an appropriate error since it is always an error to
 // return early from a script.
 func opcodeReturn(op *parsedOpcode, vm *Engine) error {
-	return ErrStackEarlyReturn
+	return scriptError(ErrEarlyReturn, "script returned early")
+}
+
+// verifyLockTime is a helper function used to validate locktimes.
+func verifyLockTime(txLockTime, threshold, lockTime int64) error {
+	// The lockTimes in both the script and transaction must be of the same
+	// type.
+	if !((txLockTime < threshold && lockTime < threshold) ||
+		(txLockTime >= threshold && lockTime >= threshold)) {
+		str := fmt.Sprintf("mismatched locktime types -- tx locktime "+
+			"%d, stack locktime %d", txLockTime, lockTime)
+		return scriptError(ErrUnsatisfiedLockTime, str)
+	}
+
+	if lockTime > txLockTime {
+		str := fmt.Sprintf("locktime requirement not satisfied -- "+
+			"locktime is greater than the transaction locktime: "+
+			"%d > %d", lockTime, txLockTime)
+		return scriptError(ErrUnsatisfiedLockTime, str)
+	}
+
+	return nil
+}
+
+// opcodeCheckLockTimeVerify compares the top item on the data stack to the
+// LockTime field of the transaction containing the script signature
+// validating if the transaction outputs are spendable yet.  If flag
+// ScriptVerifyCheckLockTimeVerify is not set, the code continues as if OP_NOP2
+// were executed.
+func opcodeCheckLockTimeVerify(op *parsedOpcode, vm *Engine) error {
+	// If the ScriptVerifyCheckLockTimeVerify script flag is not set, treat
+	// opcode as OP_NOP2 instead.
+	if !vm.hasFlag(ScriptVerifyCheckLockTimeVerify) {
+		if vm.hasFlag(ScriptDiscourageUpgradableNops) {
+			return scriptError(ErrDiscourageUpgradableNOPs,
+				"OP_NOP2 reserved for soft-fork upgrades")
+		}
+		return nil
+	}
+
+	// The current transaction locktime is a uint32 resulting in a maximum
+	// locktime of 2^32-1 (the year 2106).  However, scriptNums are signed
+	// and therefore a standard 4-byte scriptNum would only support up to a
+	// maximum of 2^31-1 (the year 2038).  Thus, a 5-byte scriptNum is used
+	// here since it will support up to 2^39-1 which allows dates beyond the
+	// current locktime limit.
+	//
+	// PeekByteArray is used here instead of PeekInt because we do not want
+	// to be limited to a 4-byte integer for reasons specified above.
+	so, err := vm.dstack.PeekByteArray(0)
+	if err != nil {
+		return err
+	}
+	lockTime, err := makeScriptNum(so, vm.dstack.verifyMinimalData, 5)
+	if err != nil {
+		return err
+	}
+
+	// In the rare event that the argument needs to be < 0 due to some
+	// arithmetic being done first, you can always use
+	// 0 OP_MAX OP_CHECKLOCKTIMEVERIFY.
+	if lockTime < 0 {
+		str := fmt.Sprintf("negative lock time: %d", lockTime)
+		return scriptError(ErrNegativeLockTime, str)
+	}
+
+	// The lock time field of a transaction is either a block height at
+	// which the transaction is finalized or a timestamp depending on if the
+	// value is before the txscript.LockTimeThreshold.  When it is under the
+	// threshold it is a block height.
+	err = verifyLockTime(int64(vm.tx.LockTime), LockTimeThreshold,
+		int64(lockTime))
+	if err != nil {
+		return err
+	}
+
+	// The lock time feature can also be disabled, thereby bypassing
+	// OP_CHECKLOCKTIMEVERIFY, if every transaction input has been finalized by
+	// setting its sequence to the maximum value (wire.MaxTxInSequenceNum).  This
+	// condition would result in the transaction being allowed into the blockchain
+	// making the opcode ineffective.
+	//
+	// This condition is prevented by enforcing that the input being used by
+	// the opcode is unlocked (its sequence number is less than the max
+	// value).  This is sufficient to prove correctness without having to
+	// check every input.
+	//
+	// NOTE: This implies that even if the transaction is not finalized due to
+	// another input being unlocked, the opcode execution will still fail when the
+	// input being used by the opcode is locked.
+	if vm.tx.TxIn[vm.txIdx].Sequence == wire.MaxTxInSequenceNum {
+		return scriptError(ErrUnsatisfiedLockTime,
+			"transaction input is finalized")
+	}
+
+	return nil
+}
+
+// opcodeCheckSequenceVerify compares the top item on the data stack to the
+// LockTime field of the transaction containing the script signature
+// validating if the transaction outputs are spendable yet.  If flag
+// ScriptVerifyCheckSequenceVerify is not set, the code continues as if OP_NOP3
+// were executed.
+func opcodeCheckSequenceVerify(op *parsedOpcode, vm *Engine) error {
+	// If the ScriptVerifyCheckSequenceVerify script flag is not set, treat
+	// opcode as OP_NOP3 instead.
+	if !vm.hasFlag(ScriptVerifyCheckSequenceVerify) {
+		if vm.hasFlag(ScriptDiscourageUpgradableNops) {
+			return scriptError(ErrDiscourageUpgradableNOPs,
+				"OP_NOP3 reserved for soft-fork upgrades")
+		}
+		return nil
+	}
+
+	// The current transaction sequence is a uint32 resulting in a maximum
+	// sequence of 2^32-1.  However, scriptNums are signed and therefore a
+	// standard 4-byte scriptNum would only support up to a maximum of
+	// 2^31-1.  Thus, a 5-byte scriptNum is used here since it will support
+	// up to 2^39-1 which allows sequences beyond the current sequence
+	// limit.
+	//
+	// PeekByteArray is used here instead of PeekInt because we do not want
+	// to be limited to a 4-byte integer for reasons specified above.
+	so, err := vm.dstack.PeekByteArray(0)
+	if err != nil {
+		return err
+	}
+	stackSequence, err := makeScriptNum(so, vm.dstack.verifyMinimalData, 5)
+	if err != nil {
+		return err
+	}
+
+	// In the rare event that the argument needs to be < 0 due to some
+	// arithmetic being done first, you can always use
+	// 0 OP_MAX OP_CHECKSEQUENCEVERIFY.
+	if stackSequence < 0 {
+		str := fmt.Sprintf("negative sequence: %d", stackSequence)
+		return scriptError(ErrNegativeLockTime, str)
+	}
+
+	sequence := int64(stackSequence)
+
+	// To provide for future soft-fork extensibility, if the
+	// operand has the disabled lock-time flag set,
+	// CHECKSEQUENCEVERIFY behaves as a NOP.
+	if sequence&int64(wire.SequenceLockTimeDisabled) != 0 {
+		return nil
+	}
+
+	// Transaction version numbers not high enough to trigger CSV rules must
+	// fail.
+	if vm.tx.Version < 2 {
+		str := fmt.Sprintf("invalid transaction version: %d",
+			vm.tx.Version)
+		return scriptError(ErrUnsatisfiedLockTime, str)
+	}
+
+	// Sequence numbers with their most significant bit set are not
+	// consensus constrained. Testing that the transaction's sequence
+	// number does not have this bit set prevents using this property
+	// to get around a CHECKSEQUENCEVERIFY check.
+	txSequence := int64(vm.tx.TxIn[vm.txIdx].Sequence)
+	if txSequence&int64(wire.SequenceLockTimeDisabled) != 0 {
+		str := fmt.Sprintf("transaction sequence has sequence "+
+			"locktime disabled bit set: 0x%x", txSequence)
+		return scriptError(ErrUnsatisfiedLockTime, str)
+	}
+
+	// Mask off non-consensus bits before doing comparisons.
+	lockTimeMask := int64(wire.SequenceLockTimeIsSeconds |
+		wire.SequenceLockTimeMask)
+	return verifyLockTime(txSequence&lockTimeMask,
+		wire.SequenceLockTimeIsSeconds, sequence&lockTimeMask)
 }
 
 // opcodeToAltStack removes the top item from the main data stack and pushes it
@@ -1024,7 +1244,7 @@ func opcodeToAltStack(op *parsedOpcode, vm *Engine) error {
 // opcodeFromAltStack removes the top item from the alternate data stack and
 // pushes it onto the main data stack.
 //
-// Main data stack transformation: [... x1 x2 x3] -> [... x1 x2 x3 y1]
+// Main data stack transformation: [... x1 x2 x3] -> [... x1 x2 x3 y3]
 // Alt data stack transformation:  [... y1 y2 y3] -> [... y1 y2]
 func opcodeFromAltStack(op *parsedOpcode, vm *Engine) error {
 	so, err := vm.astack.PopByteArray()
@@ -1081,8 +1301,8 @@ func opcode2Swap(op *parsedOpcode, vm *Engine) error {
 
 // opcodeIfDup duplicates the top item of the stack if it is not zero.
 //
-// Stack transformation (x1==0): [... x1] -> [...]
-// Stack transformation (x1!=0): [... x1] -> [... x1]
+// Stack transformation (x1==0): [... x1] -> [... x1]
+// Stack transformation (x1!=0): [... x1] -> [... x1 x1]
 func opcodeIfDup(op *parsedOpcode, vm *Engine) error {
 	so, err := vm.dstack.PeekByteArray(0)
 	if err != nil {
@@ -1230,7 +1450,7 @@ func opcodeEqual(op *parsedOpcode, vm *Engine) error {
 func opcodeEqualVerify(op *parsedOpcode, vm *Engine) error {
 	err := opcodeEqual(op, vm)
 	if err == nil {
-		err = opcodeVerify(op, vm)
+		err = abstractVerify(op, vm, ErrEqualVerify)
 	}
 	return err
 }
@@ -1468,7 +1688,7 @@ func opcodeNumEqual(op *parsedOpcode, vm *Engine) error {
 func opcodeNumEqualVerify(op *parsedOpcode, vm *Engine) error {
 	err := opcodeNumEqual(op, vm)
 	if err == nil {
-		err = opcodeVerify(op, vm)
+		err = abstractVerify(op, vm, ErrNumEqualVerify)
 	}
 	return err
 }
@@ -1721,7 +1941,7 @@ func opcodeSha256(op *parsedOpcode, vm *Engine) error {
 		return err
 	}
 
-	hash := fastsha256.Sum256(buf)
+	hash := sha256.Sum256(buf)
 	vm.dstack.PushByteArray(hash[:])
 	return nil
 }
@@ -1736,7 +1956,7 @@ func opcodeHash160(op *parsedOpcode, vm *Engine) error {
 		return err
 	}
 
-	hash := fastsha256.Sum256(buf)
+	hash := sha256.Sum256(buf)
 	vm.dstack.PushByteArray(calcHash(hash[:], ripemd160.New()))
 	return nil
 }
@@ -1751,7 +1971,7 @@ func opcodeHash256(op *parsedOpcode, vm *Engine) error {
 		return err
 	}
 
-	vm.dstack.PushByteArray(wire.DoubleSha256(buf))
+	vm.dstack.PushByteArray(chainhash.DoubleHashB(buf))
 	return nil
 }
 
@@ -1850,8 +2070,26 @@ func opcodeCheckSig(op *parsedOpcode, vm *Engine) error {
 		return nil
 	}
 
-	ok := signature.Verify(hash, pubKey)
-	vm.dstack.PushBool(ok)
+	var valid bool
+	if vm.sigCache != nil {
+		var sigHash chainhash.Hash
+		copy(sigHash[:], hash)
+
+		valid = vm.sigCache.Exists(sigHash, signature, pubKey)
+		if !valid && signature.Verify(hash, pubKey) {
+			vm.sigCache.Add(sigHash, signature, pubKey)
+			valid = true
+		}
+	} else {
+		valid = signature.Verify(hash, pubKey)
+	}
+
+	if !valid && vm.hasFlag(ScriptVerifyNullFail) && len(sigBytes) > 0 {
+		str := "signature not empty on failed checksig"
+		return scriptError(ErrNullFail, str)
+	}
+
+	vm.dstack.PushBool(valid)
 	return nil
 }
 
@@ -1863,14 +2101,14 @@ func opcodeCheckSig(op *parsedOpcode, vm *Engine) error {
 func opcodeCheckSigVerify(op *parsedOpcode, vm *Engine) error {
 	err := opcodeCheckSig(op, vm)
 	if err == nil {
-		err = opcodeVerify(op, vm)
+		err = abstractVerify(op, vm, ErrCheckSigVerify)
 	}
 	return err
 }
 
 // parsedSigInfo houses a raw signature along with its parsed form and a flag
 // for whether or not it has already been parsed.  It is used to prevent parsing
-// the same signature multiple times when verify a multisig.
+// the same signature multiple times when verifying a multisig.
 type parsedSigInfo struct {
 	signature       []byte
 	parsedSignature *btcec.Signature
@@ -1903,12 +2141,21 @@ func opcodeCheckMultiSig(op *parsedOpcode, vm *Engine) error {
 	}
 
 	numPubKeys := int(numKeys.Int32())
-	if numPubKeys < 0 || numPubKeys > MaxPubKeysPerMultiSig {
-		return ErrStackTooManyPubKeys
+	if numPubKeys < 0 {
+		str := fmt.Sprintf("number of pubkeys %d is negative",
+			numPubKeys)
+		return scriptError(ErrInvalidPubKeyCount, str)
+	}
+	if numPubKeys > MaxPubKeysPerMultiSig {
+		str := fmt.Sprintf("too many pubkeys: %d > %d",
+			numPubKeys, MaxPubKeysPerMultiSig)
+		return scriptError(ErrInvalidPubKeyCount, str)
 	}
 	vm.numOps += numPubKeys
 	if vm.numOps > MaxOpsPerScript {
-		return ErrStackTooManyOperations
+		str := fmt.Sprintf("exceeded max operation limit of %d",
+			MaxOpsPerScript)
+		return scriptError(ErrTooManyOperations, str)
 	}
 
 	pubKeys := make([][]byte, 0, numPubKeys)
@@ -1926,12 +2173,15 @@ func opcodeCheckMultiSig(op *parsedOpcode, vm *Engine) error {
 	}
 	numSignatures := int(numSigs.Int32())
 	if numSignatures < 0 {
-		return fmt.Errorf("number of signatures '%d' is less than 0",
+		str := fmt.Sprintf("number of signatures %d is negative",
 			numSignatures)
+		return scriptError(ErrInvalidSignatureCount, str)
+
 	}
 	if numSignatures > numPubKeys {
-		return fmt.Errorf("more signatures than pubkeys: %d > %d",
+		str := fmt.Sprintf("more signatures than pubkeys: %d > %d",
 			numSignatures, numPubKeys)
+		return scriptError(ErrInvalidSignatureCount, str)
 	}
 
 	signatures := make([]*parsedSigInfo, 0, numSignatures)
@@ -1957,8 +2207,9 @@ func opcodeCheckMultiSig(op *parsedOpcode, vm *Engine) error {
 	// value which unfortunately provides a source of malleability.  Thus,
 	// there is a script flag to force an error when the value is NOT 0.
 	if vm.hasFlag(ScriptStrictMultiSig) && len(dummy) != 0 {
-		return fmt.Errorf("multisig dummy argument is not zero length: %d",
-			len(dummy))
+		str := fmt.Sprintf("multisig dummy argument has length %d "+
+			"instead of 0", len(dummy))
+		return scriptError(ErrSigNullDummy, str)
 	}
 
 	// Get script starting from the most recent OP_CODESEPARATOR.
@@ -2051,10 +2302,33 @@ func opcodeCheckMultiSig(op *parsedOpcode, vm *Engine) error {
 		// Generate the signature hash based on the signature hash type.
 		hash := calcSignatureHash(script, hashType, &vm.tx, vm.txIdx)
 
-		if parsedSig.Verify(hash, parsedPubKey) {
+		var valid bool
+		if vm.sigCache != nil {
+			var sigHash chainhash.Hash
+			copy(sigHash[:], hash)
+
+			valid = vm.sigCache.Exists(sigHash, parsedSig, parsedPubKey)
+			if !valid && parsedSig.Verify(hash, parsedPubKey) {
+				vm.sigCache.Add(sigHash, parsedSig, parsedPubKey)
+				valid = true
+			}
+		} else {
+			valid = parsedSig.Verify(hash, parsedPubKey)
+		}
+
+		if valid {
 			// PubKey verified, move on to the next signature.
 			signatureIdx++
 			numSignatures--
+		}
+	}
+
+	if !success && vm.hasFlag(ScriptVerifyNullFail) {
+		for _, sig := range signatures {
+			if len(sig.signature) > 0 {
+				str := "not all signatures empty on failed checkmultisig"
+				return scriptError(ErrNullFail, str)
+			}
 		}
 	}
 
@@ -2071,7 +2345,7 @@ func opcodeCheckMultiSig(op *parsedOpcode, vm *Engine) error {
 func opcodeCheckMultiSigVerify(op *parsedOpcode, vm *Engine) error {
 	err := opcodeCheckMultiSig(op, vm)
 	if err == nil {
-		err = opcodeVerify(op, vm)
+		err = abstractVerify(op, vm, ErrCheckMultiSigVerify)
 	}
 	return err
 }
@@ -2082,11 +2356,14 @@ var OpcodeByName = make(map[string]byte)
 
 func init() {
 	// Initialize the opcode name to value map using the contents of the
-	// opcode array.  Also add entries for "OP_FALSE" and "OP_TRUE" since
-	// they are aliases for "OP_0" and "OP_1", respectively.
+	// opcode array.  Also add entries for "OP_FALSE", "OP_TRUE", and
+	// "OP_NOP2" since they are aliases for "OP_0", "OP_1",
+	// and "OP_CHECKLOCKTIMEVERIFY" respectively.
 	for _, op := range opcodeArray {
 		OpcodeByName[op.name] = op.value
 	}
 	OpcodeByName["OP_FALSE"] = OP_FALSE
 	OpcodeByName["OP_TRUE"] = OP_TRUE
+	OpcodeByName["OP_NOP2"] = OP_CHECKLOCKTIMEVERIFY
+	OpcodeByName["OP_NOP3"] = OP_CHECKSEQUENCEVERIFY
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 The btcsuite developers
+// Copyright (c) 2013-2016 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,17 +8,16 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net"
 	"strings"
 	"time"
 )
 
 // MaxUserAgentLen is the maximum allowed length for the user agent field in a
 // version message (MsgVersion).
-const MaxUserAgentLen = 2000
+const MaxUserAgentLen = 256
 
 // DefaultUserAgent for wire in the stack
-const DefaultUserAgent = "/btcwire:0.2.0/"
+const DefaultUserAgent = "/btcwire:0.5.0/"
 
 // MsgVersion implements the Message interface and represents a bitcoin version
 // message.  It is used for a peer to advertise itself as soon as an outbound
@@ -61,10 +60,7 @@ type MsgVersion struct {
 // HasService returns whether the specified service is supported by the peer
 // that generated the message.
 func (msg *MsgVersion) HasService(service ServiceFlag) bool {
-	if msg.Services&service == service {
-		return true
-	}
-	return false
+	return msg.Services&service == service
 }
 
 // AddService adds service as a supported service by the peer generating the
@@ -87,12 +83,11 @@ func (msg *MsgVersion) BtcDecode(r io.Reader, pver uint32) error {
 			"*bytes.Buffer")
 	}
 
-	var sec int64
-	err := readElements(buf, &msg.ProtocolVersion, &msg.Services, &sec)
+	err := readElements(buf, &msg.ProtocolVersion, &msg.Services,
+		(*int64Time)(&msg.Timestamp))
 	if err != nil {
 		return err
 	}
-	msg.Timestamp = time.Unix(sec, 0)
 
 	err = readNetAddress(buf, pver, &msg.AddrYou, false)
 	if err != nil {
@@ -115,7 +110,7 @@ func (msg *MsgVersion) BtcDecode(r io.Reader, pver uint32) error {
 		}
 	}
 	if buf.Len() > 0 {
-		userAgent, err := readVarString(buf, pver)
+		userAgent, err := ReadVarString(buf, pver)
 		if err != nil {
 			return err
 		}
@@ -181,7 +176,7 @@ func (msg *MsgVersion) BtcEncode(w io.Writer, pver uint32) error {
 		return err
 	}
 
-	err = writeVarString(w, pver, msg.UserAgent)
+	err = WriteVarString(w, pver, msg.UserAgent)
 	if err != nil {
 		return err
 	}
@@ -241,27 +236,6 @@ func NewMsgVersion(me *NetAddress, you *NetAddress, nonce uint64,
 		LastBlock:       lastBlock,
 		DisableRelayTx:  false,
 	}
-}
-
-// NewMsgVersionFromConn is a convenience function that extracts the remote
-// and local address from conn and returns a new bitcoin version message that
-// conforms to the Message interface.  See NewMsgVersion.
-func NewMsgVersionFromConn(conn net.Conn, nonce uint64,
-	lastBlock int32) (*MsgVersion, error) {
-
-	// Don't assume any services until we know otherwise.
-	lna, err := NewNetAddress(conn.LocalAddr(), 0)
-	if err != nil {
-		return nil, err
-	}
-
-	// Don't assume any services until we know otherwise.
-	rna, err := NewNetAddress(conn.RemoteAddr(), 0)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewMsgVersion(lna, rna, nonce, lastBlock), nil
 }
 
 // validateUserAgent checks userAgent length against MaxUserAgentLen

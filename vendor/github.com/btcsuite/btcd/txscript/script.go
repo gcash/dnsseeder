@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 The btcsuite developers
+// Copyright (c) 2013-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 )
 
@@ -19,7 +20,7 @@ import (
 var Bip16Activation = time.Unix(1333238400, 0)
 
 // SigHashType represents hash type bits at the end of a signature.
-type SigHashType byte
+type SigHashType uint32
 
 // Hash type bits from the end of a signature.
 const (
@@ -105,8 +106,8 @@ func parseScriptTemplate(script []byte, opcodes *[256]opcode) ([]parsedOpcode, e
 	retScript := make([]parsedOpcode, 0, len(script))
 	for i := 0; i < len(script); {
 		instr := script[i]
-		op := opcodes[instr]
-		pop := parsedOpcode{opcode: &op}
+		op := &opcodes[instr]
+		pop := parsedOpcode{opcode: op}
 
 		// Parse data out of instruction.
 		switch {
@@ -119,7 +120,11 @@ func parseScriptTemplate(script []byte, opcodes *[256]opcode) ([]parsedOpcode, e
 		// Data pushes of specific lengths -- OP_DATA_[1-75].
 		case op.length > 1:
 			if len(script[i:]) < op.length {
-				return retScript, ErrStackShortScript
+				str := fmt.Sprintf("opcode %s requires %d "+
+					"bytes, but script only has %d remaining",
+					op.name, op.length, len(script[i:]))
+				return retScript, scriptError(ErrMalformedPush,
+					str)
 			}
 
 			// Slice out the data.
@@ -132,7 +137,11 @@ func parseScriptTemplate(script []byte, opcodes *[256]opcode) ([]parsedOpcode, e
 			off := i + 1
 
 			if len(script[off:]) < -op.length {
-				return retScript, ErrStackShortScript
+				str := fmt.Sprintf("opcode %s requires %d "+
+					"bytes, but script only has %d remaining",
+					op.name, -op.length, len(script[off:]))
+				return retScript, scriptError(ErrMalformedPush,
+					str)
 			}
 
 			// Next -length bytes are little endian length of data.
@@ -148,9 +157,10 @@ func parseScriptTemplate(script []byte, opcodes *[256]opcode) ([]parsedOpcode, e
 					(uint(script[off+1]) << 8) |
 					uint(script[off]))
 			default:
-				return retScript,
-					fmt.Errorf("invalid opcode length %d",
-						op.length)
+				str := fmt.Sprintf("invalid opcode length %d",
+					op.length)
+				return retScript, scriptError(ErrMalformedPush,
+					str)
 			}
 
 			// Move offset to beginning of the data.
@@ -159,7 +169,11 @@ func parseScriptTemplate(script []byte, opcodes *[256]opcode) ([]parsedOpcode, e
 			// Disallow entries that do not fit script or were
 			// sign extended.
 			if int(l) > len(script[off:]) || int(l) < 0 {
-				return retScript, ErrStackShortScript
+				str := fmt.Sprintf("opcode %s pushes %d bytes, "+
+					"but script only has %d remaining",
+					op.name, int(l), len(script[off:]))
+				return retScript, scriptError(ErrMalformedPush,
+					str)
 			}
 
 			pop.data = script[off : off+int(l)]
@@ -198,18 +212,19 @@ func unparseScript(pops []parsedOpcode) ([]byte, error) {
 // appended.  In addition, the reason the script failed to parse is returned
 // if the caller wants more information about the failure.
 func DisasmString(buf []byte) (string, error) {
-	disbuf := ""
+	var disbuf bytes.Buffer
 	opcodes, err := parseScript(buf)
 	for _, pop := range opcodes {
-		disbuf += pop.print(true) + " "
+		disbuf.WriteString(pop.print(true))
+		disbuf.WriteByte(' ')
 	}
-	if disbuf != "" {
-		disbuf = disbuf[:len(disbuf)-1]
+	if disbuf.Len() > 0 {
+		disbuf.Truncate(disbuf.Len() - 1)
 	}
 	if err != nil {
-		disbuf += "[error]"
+		disbuf.WriteString("[error]")
 	}
-	return disbuf, err
+	return disbuf.String(), err
 }
 
 // removeOpcode will remove any opcode matching ``opcode'' from the opcode
@@ -288,7 +303,7 @@ func calcSignatureHash(script []parsedOpcode, hashType SigHashType, tx *wire.Msg
 	// cleverly construct transactions which can steal those coins provided
 	// they can reuse signatures.
 	if hashType&sigHashMask == SigHashSingle && idx >= len(tx.TxOut) {
-		var hash wire.ShaHash
+		var hash chainhash.Hash
 		hash[0] = 0x01
 		return hash[:]
 	}
@@ -353,10 +368,10 @@ func calcSignatureHash(script []parsedOpcode, hashType SigHashType, tx *wire.Msg
 	// The final hash is the double sha256 of both the serialized modified
 	// transaction and the hash type (encoded as a 4-byte little-endian
 	// value) appended.
-	var wbuf bytes.Buffer
-	txCopy.Serialize(&wbuf)
-	binary.Write(&wbuf, binary.LittleEndian, uint32(hashType))
-	return wire.DoubleSha256(wbuf.Bytes())
+	wbuf := bytes.NewBuffer(make([]byte, 0, txCopy.SerializeSize()+4))
+	txCopy.Serialize(wbuf)
+	binary.Write(wbuf, binary.LittleEndian, hashType)
+	return chainhash.DoubleHashB(wbuf.Bytes())
 }
 
 // asSmallInt returns the passed opcode, which must be true according to
@@ -385,7 +400,7 @@ func getSigOpCount(pops []parsedOpcode, precise bool) int {
 			fallthrough
 		case OP_CHECKMULTISIGVERIFY:
 			// If we are being precise then look for familiar
-			// patterns for multisig, for now all we recognise is
+			// patterns for multisig, for now all we recognize is
 			// OP_1 - OP_16 to signify the number of pubkeys.
 			// Otherwise, we use the max of 20.
 			if precise && i > 0 &&

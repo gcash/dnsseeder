@@ -5,6 +5,8 @@ import (
 	//	"sync"
 
 	"github.com/miekg/dns"
+	"github.com/btcsuite/btcd/wire"
+	"strings"
 )
 
 // updateDNS updates the current slices of dns.RR so incoming requests get a
@@ -20,7 +22,6 @@ func updateDNS(s *dnsseeder) {
 		// FIXME above needs to be convertwd into one scan of theList if possible
 
 		numRR := 0
-
 		for _, nd := range s.theList {
 			// when we reach max exit
 			if numRR >= 25 {
@@ -28,6 +29,18 @@ func updateDNS(s *dnsseeder) {
 			}
 
 			if nd.status != statusCG {
+				continue
+			}
+
+			// Filter services
+			for _, service := range s.serviceFilter {
+				if !HasService(nd.services, service) {
+					continue
+				}
+			}
+
+			// Filter version
+			if s.versionFilter != "" && !strings.Contains(strings.ToLower(nd.strVersion), strings.ToLower(s.versionFilter)) {
 				continue
 			}
 
@@ -164,6 +177,10 @@ func serve(net, port string) {
 	if err := server.ListenAndServe(); err != nil {
 		log.Printf("Failed to setup the "+net+" server: %v\n", err)
 	}
+}
+
+func HasService(services wire.ServiceFlag, flag wire.ServiceFlag) bool {
+	return services&flag == flag
 }
 
 /*

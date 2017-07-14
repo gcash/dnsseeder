@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2015 The btcsuite developers
+// Copyright (c) 2014-2016 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,8 @@ package wire
 import (
 	"fmt"
 	"io"
+
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 )
 
 // RejectCode represents a numeric value by which a remote peer indicates
@@ -66,7 +68,7 @@ type MsgReject struct {
 
 	// Hash identifies a specific block or transaction that was rejected
 	// and therefore only applies the MsgBlock and MsgTx messages.
-	Hash ShaHash
+	Hash chainhash.Hash
 }
 
 // BtcDecode decodes r using the bitcoin protocol encoding into the receiver.
@@ -79,7 +81,7 @@ func (msg *MsgReject) BtcDecode(r io.Reader, pver uint32) error {
 	}
 
 	// Command that was rejected.
-	cmd, err := readVarString(r, pver)
+	cmd, err := ReadVarString(r, pver)
 	if err != nil {
 		return err
 	}
@@ -93,7 +95,7 @@ func (msg *MsgReject) BtcDecode(r io.Reader, pver uint32) error {
 
 	// Human readable string with specific details (over and above the
 	// reject code above) about why the command was rejected.
-	reason, err := readVarString(r, pver)
+	reason, err := ReadVarString(r, pver)
 	if err != nil {
 		return err
 	}
@@ -121,7 +123,7 @@ func (msg *MsgReject) BtcEncode(w io.Writer, pver uint32) error {
 	}
 
 	// Command that was rejected.
-	err := writeVarString(w, pver, msg.Cmd)
+	err := WriteVarString(w, pver, msg.Cmd)
 	if err != nil {
 		return err
 	}
@@ -134,7 +136,7 @@ func (msg *MsgReject) BtcEncode(w io.Writer, pver uint32) error {
 
 	// Human readable string with specific details (over and above the
 	// reject code above) about why the command was rejected.
-	err = writeVarString(w, pver, msg.Reason)
+	err = WriteVarString(w, pver, msg.Reason)
 	if err != nil {
 		return err
 	}

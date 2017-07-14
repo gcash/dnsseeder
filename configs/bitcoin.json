@@ -8,5 +8,13 @@
  "TTL": 600,
  "Seeder1": "dnsseed.bluematt.me",
  "Seeder2": "bitseed.xf2.org",
- "Seeder3": "dnsseed.bitcoin.dashjr.org"
+ "Seeder3": "dnsseed.bitcoin.dashjr.org",
+ "ServiceFilter": [
+  "NodeNetwork",
+  "NodeBloom",
+  "NodeGetUTXO",
+  "NodeXThin",
+  "NodeWitness"
+ ],
+ "VersionFilter": "Satoshi:1."
 }

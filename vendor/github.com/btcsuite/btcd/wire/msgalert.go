@@ -161,11 +161,11 @@ func (alert *Alert) Serialize(w io.Writer, pver uint32) error {
 			"[count %v, max %v]", count, maxCountSetCancel)
 		return messageError("Alert.Serialize", str)
 	}
-	err = writeVarInt(w, pver, uint64(count))
+	err = WriteVarInt(w, pver, uint64(count))
 	if err != nil {
 		return err
 	}
-	for i := 0; i < int(count); i++ {
+	for i := 0; i < count; i++ {
 		err = writeElement(w, alert.SetCancel[i])
 		if err != nil {
 			return err
@@ -183,12 +183,12 @@ func (alert *Alert) Serialize(w io.Writer, pver uint32) error {
 			"[count %v, max %v]", count, maxCountSetSubVer)
 		return messageError("Alert.Serialize", str)
 	}
-	err = writeVarInt(w, pver, uint64(count))
+	err = WriteVarInt(w, pver, uint64(count))
 	if err != nil {
 		return err
 	}
-	for i := 0; i < int(count); i++ {
-		err = writeVarString(w, pver, alert.SetSubVer[i])
+	for i := 0; i < count; i++ {
+		err = WriteVarString(w, pver, alert.SetSubVer[i])
 		if err != nil {
 			return err
 		}
@@ -198,19 +198,15 @@ func (alert *Alert) Serialize(w io.Writer, pver uint32) error {
 	if err != nil {
 		return err
 	}
-	err = writeVarString(w, pver, alert.Comment)
+	err = WriteVarString(w, pver, alert.Comment)
 	if err != nil {
 		return err
 	}
-	err = writeVarString(w, pver, alert.StatusBar)
+	err = WriteVarString(w, pver, alert.StatusBar)
 	if err != nil {
 		return err
 	}
-	err = writeVarString(w, pver, alert.Reserved)
-	if err != nil {
-		return err
-	}
-	return nil
+	return WriteVarString(w, pver, alert.Reserved)
 }
 
 // Deserialize decodes from r into the receiver using the alert protocol
@@ -225,7 +221,7 @@ func (alert *Alert) Deserialize(r io.Reader, pver uint32) error {
 	// SetCancel: first read a VarInt that contains
 	// count - the number of Cancel IDs, then
 	// iterate count times and read them
-	count, err := readVarInt(r, pver)
+	count, err := ReadVarInt(r, pver)
 	if err != nil {
 		return err
 	}
@@ -249,7 +245,7 @@ func (alert *Alert) Deserialize(r io.Reader, pver uint32) error {
 
 	// SetSubVer: similar to SetCancel
 	// but read count number of sub-version strings
-	count, err = readVarInt(r, pver)
+	count, err = ReadVarInt(r, pver)
 	if err != nil {
 		return err
 	}
@@ -260,7 +256,7 @@ func (alert *Alert) Deserialize(r io.Reader, pver uint32) error {
 	}
 	alert.SetSubVer = make([]string, count)
 	for i := 0; i < int(count); i++ {
-		alert.SetSubVer[i], err = readVarString(r, pver)
+		alert.SetSubVer[i], err = ReadVarString(r, pver)
 		if err != nil {
 			return err
 		}
@@ -270,19 +266,16 @@ func (alert *Alert) Deserialize(r io.Reader, pver uint32) error {
 	if err != nil {
 		return err
 	}
-	alert.Comment, err = readVarString(r, pver)
+	alert.Comment, err = ReadVarString(r, pver)
 	if err != nil {
 		return err
 	}
-	alert.StatusBar, err = readVarString(r, pver)
+	alert.StatusBar, err = ReadVarString(r, pver)
 	if err != nil {
 		return err
 	}
-	alert.Reserved, err = readVarString(r, pver)
-	if err != nil {
-		return err
-	}
-	return nil
+	alert.Reserved, err = ReadVarString(r, pver)
+	return err
 }
 
 // NewAlert returns an new Alert with values provided.
@@ -343,7 +336,7 @@ type MsgAlert struct {
 func (msg *MsgAlert) BtcDecode(r io.Reader, pver uint32) error {
 	var err error
 
-	msg.SerializedPayload, err = readVarBytes(r, pver, MaxMessagePayload,
+	msg.SerializedPayload, err = ReadVarBytes(r, pver, MaxMessagePayload,
 		"alert serialized payload")
 	if err != nil {
 		return err
@@ -354,13 +347,9 @@ func (msg *MsgAlert) BtcDecode(r io.Reader, pver uint32) error {
 		msg.Payload = nil
 	}
 
-	msg.Signature, err = readVarBytes(r, pver, MaxMessagePayload,
+	msg.Signature, err = ReadVarBytes(r, pver, MaxMessagePayload,
 		"alert signature")
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // BtcEncode encodes the receiver to w using the bitcoin protocol encoding.
@@ -386,15 +375,11 @@ func (msg *MsgAlert) BtcEncode(w io.Writer, pver uint32) error {
 	if slen == 0 {
 		return messageError("MsgAlert.BtcEncode", "empty serialized payload")
 	}
-	err = writeVarBytes(w, pver, serializedpayload)
+	err = WriteVarBytes(w, pver, serializedpayload)
 	if err != nil {
 		return err
 	}
-	err = writeVarBytes(w, pver, msg.Signature)
-	if err != nil {
-		return err
-	}
-	return nil
+	return WriteVarBytes(w, pver, msg.Signature)
 }
 
 // Command returns the protocol command string for the message.  This is part

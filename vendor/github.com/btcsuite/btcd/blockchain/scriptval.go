@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2014 The btcsuite developers
+// Copyright (c) 2013-2016 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -28,8 +28,9 @@ type txValidator struct {
 	validateChan chan *txValidateItem
 	quitChan     chan struct{}
 	resultChan   chan error
-	txStore      TxStore
+	utxoView     *UtxoViewpoint
 	flags        txscript.ScriptFlags
+	sigCache     *txscript.SigCache
 }
 
 // sendResult sends the result of a script pair validation on the internal
@@ -54,27 +55,27 @@ out:
 			// Ensure the referenced input transaction is available.
 			txIn := txVI.txIn
 			originTxHash := &txIn.PreviousOutPoint.Hash
-			originTx, exists := v.txStore[*originTxHash]
-			if !exists || originTx.Err != nil || originTx.Tx == nil {
+			originTxIndex := txIn.PreviousOutPoint.Index
+			txEntry := v.utxoView.LookupEntry(originTxHash)
+			if txEntry == nil {
 				str := fmt.Sprintf("unable to find input "+
 					"transaction %v referenced from "+
 					"transaction %v", originTxHash,
-					txVI.tx.Sha())
+					txVI.tx.Hash())
 				err := ruleError(ErrMissingTx, str)
 				v.sendResult(err)
 				break out
 			}
-			originMsgTx := originTx.Tx.MsgTx()
 
-			// Ensure the output index in the referenced transaction
-			// is available.
-			originTxIndex := txIn.PreviousOutPoint.Index
-			if originTxIndex >= uint32(len(originMsgTx.TxOut)) {
-				str := fmt.Sprintf("out of bounds "+
-					"input index %d in transaction %v "+
-					"referenced from transaction %v",
-					originTxIndex, originTxHash,
-					txVI.tx.Sha())
+			// Ensure the referenced input transaction public key
+			// script is available.
+			pkScript := txEntry.PkScriptByIndex(originTxIndex)
+			if pkScript == nil {
+				str := fmt.Sprintf("unable to find unspent "+
+					"output %v script referenced from "+
+					"transaction %s:%d",
+					txIn.PreviousOutPoint, txVI.tx.Hash(),
+					txVI.txInIndex)
 				err := ruleError(ErrBadTxInput, str)
 				v.sendResult(err)
 				break out
@@ -82,14 +83,13 @@ out:
 
 			// Create a new script engine for the script pair.
 			sigScript := txIn.SignatureScript
-			pkScript := originMsgTx.TxOut[originTxIndex].PkScript
 			vm, err := txscript.NewEngine(pkScript, txVI.tx.MsgTx(),
-				txVI.txInIndex, v.flags)
+				txVI.txInIndex, v.flags, v.sigCache)
 			if err != nil {
 				str := fmt.Sprintf("failed to parse input "+
 					"%s:%d which references output %s:%d - "+
 					"%v (input script bytes %x, prev output "+
-					"script bytes %x)", txVI.tx.Sha(),
+					"script bytes %x)", txVI.tx.Hash(),
 					txVI.txInIndex, originTxHash,
 					originTxIndex, err, sigScript, pkScript)
 				err := ruleError(ErrScriptMalformed, str)
@@ -102,7 +102,7 @@ out:
 				str := fmt.Sprintf("failed to validate input "+
 					"%s:%d which references output %s:%d - "+
 					"%v (input script bytes %x, prev output "+
-					"script bytes %x)", txVI.tx.Sha(),
+					"script bytes %x)", txVI.tx.Hash(),
 					txVI.txInIndex, originTxHash,
 					originTxIndex, err, sigScript, pkScript)
 				err := ruleError(ErrScriptValidation, str)
@@ -179,19 +179,20 @@ func (v *txValidator) Validate(items []*txValidateItem) error {
 
 // newTxValidator returns a new instance of txValidator to be used for
 // validating transaction scripts asynchronously.
-func newTxValidator(txStore TxStore, flags txscript.ScriptFlags) *txValidator {
+func newTxValidator(utxoView *UtxoViewpoint, flags txscript.ScriptFlags, sigCache *txscript.SigCache) *txValidator {
 	return &txValidator{
 		validateChan: make(chan *txValidateItem),
 		quitChan:     make(chan struct{}),
 		resultChan:   make(chan error),
-		txStore:      txStore,
+		utxoView:     utxoView,
+		sigCache:     sigCache,
 		flags:        flags,
 	}
 }
 
 // ValidateTransactionScripts validates the scripts for the passed transaction
 // using multiple goroutines.
-func ValidateTransactionScripts(tx *btcutil.Tx, txStore TxStore, flags txscript.ScriptFlags) error {
+func ValidateTransactionScripts(tx *btcutil.Tx, utxoView *UtxoViewpoint, flags txscript.ScriptFlags, sigCache *txscript.SigCache) error {
 	// Collect all of the transaction inputs and required information for
 	// validation.
 	txIns := tx.MsgTx().TxIn
@@ -211,19 +212,13 @@ func ValidateTransactionScripts(tx *btcutil.Tx, txStore TxStore, flags txscript.
 	}
 
 	// Validate all of the inputs.
-	validator := newTxValidator(txStore, flags)
-	if err := validator.Validate(txValItems); err != nil {
-		return err
-	}
-
-	return nil
+	validator := newTxValidator(utxoView, flags, sigCache)
+	return validator.Validate(txValItems)
 }
 
 // checkBlockScripts executes and validates the scripts for all transactions in
-// the passed block.
-func checkBlockScripts(block *btcutil.Block, txStore TxStore,
-	scriptFlags txscript.ScriptFlags) error {
-
+// the passed block using multiple goroutines.
+func checkBlockScripts(block *btcutil.Block, utxoView *UtxoViewpoint, scriptFlags txscript.ScriptFlags, sigCache *txscript.SigCache) error {
 	// Collect all of the transaction inputs and required information for
 	// validation for all transactions in the block into a single slice.
 	numInputs := 0
@@ -248,10 +243,6 @@ func checkBlockScripts(block *btcutil.Block, txStore TxStore,
 	}
 
 	// Validate all of the inputs.
-	validator := newTxValidator(txStore, scriptFlags)
-	if err := validator.Validate(txValItems); err != nil {
-		return err
-	}
-
-	return nil
+	validator := newTxValidator(utxoView, scriptFlags, sigCache)
+	return validator.Validate(txValItems)
 }

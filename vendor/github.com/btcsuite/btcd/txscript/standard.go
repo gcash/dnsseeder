@@ -1,10 +1,12 @@
-// Copyright (c) 2013-2015 The btcsuite developers
+// Copyright (c) 2013-2017 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package txscript
 
 import (
+	"fmt"
+
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
 )
@@ -30,7 +32,11 @@ const (
 		ScriptVerifyMinimalData |
 		ScriptStrictMultiSig |
 		ScriptDiscourageUpgradableNops |
-		ScriptVerifyCleanStack
+		ScriptVerifyCleanStack |
+		ScriptVerifyNullFail |
+		ScriptVerifyCheckLockTimeVerify |
+		ScriptVerifyCheckSequenceVerify |
+		ScriptVerifyLowS
 )
 
 // ScriptClass is an enumeration for the list of standard types of script.
@@ -106,6 +112,13 @@ func isMultiSig(pops []parsedOpcode) bool {
 	if pops[l-1].opcode.value != OP_CHECKMULTISIG {
 		return false
 	}
+
+	// Verify the number of pubkeys specified matches the actual number
+	// of pubkeys provided.
+	if l-2-1 != asSmallInt(pops[l-2].opcode) {
+		return false
+	}
+
 	for _, pop := range pops[1 : l-2] {
 		// Valid pubkeys are either 33 or 65 bytes.
 		if len(pop.data) != 33 && len(pop.data) != 65 {
@@ -128,7 +141,8 @@ func isNullData(pops []parsedOpcode) bool {
 
 	return l == 2 &&
 		pops[0].opcode.value == OP_RETURN &&
-		pops[1].opcode.value <= OP_PUSHDATA4 &&
+		(isSmallInt(pops[1].opcode) || pops[1].opcode.value <=
+			OP_PUSHDATA4) &&
 		len(pops[1].data) <= MaxDataCarrierSize
 }
 
@@ -232,9 +246,10 @@ func CalcScriptInfo(sigScript, pkScript []byte, bip16 bool) (*ScriptInfo, error)
 	si := new(ScriptInfo)
 	si.PkScriptClass = typeOfScript(pkPops)
 
-	// Can't have a pkScript that doesn't just push data.
+	// Can't have a signature script that doesn't just push data.
 	if !isPushOnly(sigPops) {
-		return nil, ErrStackNonPushOnly
+		return nil, scriptError(ErrNotPushOnly,
+			"signature script is not push only")
 	}
 
 	si.ExpectedInputs = expectedInputs(pkPops, si.PkScriptClass)
@@ -283,7 +298,8 @@ func CalcMultiSigStats(script []byte) (int, int, error) {
 	// items must be on the stack per:
 	//  OP_1 PUBKEY OP_1 OP_CHECKMULTISIG
 	if len(pops) < 4 {
-		return 0, 0, ErrStackUnderflow
+		str := fmt.Sprintf("script %x is not a multisig script", script)
+		return 0, 0, scriptError(ErrNotMultisigScript, str)
 	}
 
 	numSigs := asSmallInt(pops[0].opcode)
@@ -317,36 +333,59 @@ func payToPubKeyScript(serializedPubKey []byte) ([]byte, error) {
 // PayToAddrScript creates a new script to pay a transaction output to a the
 // specified address.
 func PayToAddrScript(addr btcutil.Address) ([]byte, error) {
+	const nilAddrErrStr = "unable to generate payment script for nil address"
+
 	switch addr := addr.(type) {
 	case *btcutil.AddressPubKeyHash:
 		if addr == nil {
-			return nil, ErrUnsupportedAddress
+			return nil, scriptError(ErrUnsupportedAddress,
+				nilAddrErrStr)
 		}
 		return payToPubKeyHashScript(addr.ScriptAddress())
 
 	case *btcutil.AddressScriptHash:
 		if addr == nil {
-			return nil, ErrUnsupportedAddress
+			return nil, scriptError(ErrUnsupportedAddress,
+				nilAddrErrStr)
 		}
 		return payToScriptHashScript(addr.ScriptAddress())
 
 	case *btcutil.AddressPubKey:
 		if addr == nil {
-			return nil, ErrUnsupportedAddress
+			return nil, scriptError(ErrUnsupportedAddress,
+				nilAddrErrStr)
 		}
 		return payToPubKeyScript(addr.ScriptAddress())
 	}
 
-	return nil, ErrUnsupportedAddress
+	str := fmt.Sprintf("unable to generate payment script for unsupported "+
+		"address type %T", addr)
+	return nil, scriptError(ErrUnsupportedAddress, str)
+}
+
+// NullDataScript creates a provably-prunable script containing OP_RETURN
+// followed by the passed data.  An Error with the error code ErrTooMuchNullData
+// will be returned if the length of the passed data exceeds MaxDataCarrierSize.
+func NullDataScript(data []byte) ([]byte, error) {
+	if len(data) > MaxDataCarrierSize {
+		str := fmt.Sprintf("data size %d is larger than max "+
+			"allowed size %d", len(data), MaxDataCarrierSize)
+		return nil, scriptError(ErrTooMuchNullData, str)
+	}
+
+	return NewScriptBuilder().AddOp(OP_RETURN).AddData(data).Script()
 }
 
 // MultiSigScript returns a valid script for a multisignature redemption where
 // nrequired of the keys in pubkeys are required to have signed the transaction
-// for success.  An ErrBadNumRequired will be returned if nrequired is larger
-// than the number of keys provided.
+// for success.  An Error with the error code ErrTooManyRequiredSigs will be
+// returned if nrequired is larger than the number of keys provided.
 func MultiSigScript(pubkeys []*btcutil.AddressPubKey, nrequired int) ([]byte, error) {
 	if len(pubkeys) < nrequired {
-		return nil, ErrBadNumRequired
+		str := fmt.Sprintf("unable to generate multisig script with "+
+			"%d required signatures when there are only %d public "+
+			"keys available", nrequired, len(pubkeys))
+		return nil, scriptError(ErrTooManyRequiredSigs, str)
 	}
 
 	builder := NewScriptBuilder().AddInt64(int64(nrequired))

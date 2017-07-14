@@ -168,7 +168,7 @@ func mergeScripts(chainParams *chaincfg.Params, tx *wire.MsgTx, idx int,
 	pkScript []byte, class ScriptClass, addresses []btcutil.Address,
 	nRequired int, sigScript, prevScript []byte) []byte {
 
-	// TODO(oga) the scripthash and multisig paths here are overly
+	// TODO: the scripthash and multisig paths here are overly
 	// inefficient in that they will recompute already known data.
 	// some internal refactoring could probably make this avoid needless
 	// extra calculations.
@@ -203,7 +203,7 @@ func mergeScripts(chainParams *chaincfg.Params, tx *wire.MsgTx, idx int,
 
 		// Reappend the script and return the result.
 		builder := NewScriptBuilder()
-		builder.script = mergedScript
+		builder.AddOps(mergedScript)
 		builder.AddData(script)
 		finalScript, _ := builder.Script()
 		return finalScript
@@ -211,7 +211,7 @@ func mergeScripts(chainParams *chaincfg.Params, tx *wire.MsgTx, idx int,
 		return mergeMultiSig(tx, idx, addresses, nRequired, pkScript,
 			sigScript, prevScript)
 
-	// It doesn't actualy make sense to merge anything other than multiig
+	// It doesn't actually make sense to merge anything other than multiig
 	// and scripthash (because it could contain multisig). Everything else
 	// has either zero signature, can't be spent, or has a single signature
 	// which is either present or not. The other two cases are handled
@@ -294,7 +294,7 @@ sigLoop:
 		hash := calcSignatureHash(pkPops, hashType, tx, idx)
 
 		for _, addr := range addresses {
-			// All multisig addresses should be pubkey addreses
+			// All multisig addresses should be pubkey addresses
 			// it is an error to call this internal function with
 			// bad input.
 			pkaddr := addr.(*btcutil.AddressPubKey)
@@ -374,7 +374,7 @@ func (sc ScriptClosure) GetScript(address btcutil.Address) ([]byte, error) {
 // looked up by calling getKey() with the string of the given address.
 // Any pay-to-script-hash signatures will be similarly looked up by calling
 // getScript. If previousScript is provided then the results in previousScript
-// will be merged in a type-dependant manner with the newly generated.
+// will be merged in a type-dependent manner with the newly generated.
 // signature script.
 func SignTxOutput(chainParams *chaincfg.Params, tx *wire.MsgTx, idx int,
 	pkScript []byte, hashType SigHashType, kdb KeyDB, sdb ScriptDB,
@@ -394,10 +394,9 @@ func SignTxOutput(chainParams *chaincfg.Params, tx *wire.MsgTx, idx int,
 			return nil, err
 		}
 
-		// This is a bad thing. Append the p2sh script as the last
-		// push in the script.
+		// Append the p2sh script as the last push in the script.
 		builder := NewScriptBuilder()
-		builder.script = realSigScript
+		builder.AddOps(realSigScript)
 		builder.AddData(sigScript)
 
 		sigScript, _ = builder.Script()
