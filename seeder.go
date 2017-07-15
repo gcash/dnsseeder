@@ -185,23 +185,6 @@ func (s *dnsseeder) startCrawlers(resultsChan chan *result) {
 		}
 		return
 	}
-	var fcount uint32
-	for _, nd := range s.theList {
-		if nd.status != statusCG {
-			continue
-		}
-		// Filter services
-		for _, service := range s.serviceFilter {
-			if !HasService(nd.services, service) {
-				continue
-			}
-		}
-		// Filter version
-		if s.versionFilter != "" && !strings.Contains(strings.ToLower(nd.strVersion), strings.ToLower(s.versionFilter)) {
-			continue
-		}
-		fcount++
-	}
 
 	started := make([]uint32, maxStatusTypes)
 	totals := make([]uint32, maxStatusTypes)
@@ -236,7 +219,7 @@ func (s *dnsseeder) startCrawlers(resultsChan chan *result) {
 
 	// update the global stats in another goroutine to free the main goroutine
 	// for other work
-	go updateNodeCounts(s, tcount, fcount, started, totals)
+	go updateNodeCounts(s, tcount, started, totals)
 
 	// returns and read lock released
 }
@@ -301,8 +284,24 @@ func (s *dnsseeder) processResult(r *result) {
 		return
 	}
 
-	// succesful connection and addresses received so mark status
-	nd.status = statusCG
+	// succesful connection and addresses received so check filters then mark status
+	filtered := false
+	for _, service := range s.serviceFilter {
+		if !HasService(r.services, service) {
+			filtered = true
+		}
+	}
+	if s.versionFilter != "" && !strings.Contains(strings.ToLower(r.strVersion), strings.ToLower(s.versionFilter)) {
+		filtered = true
+	}
+
+	if !filtered {
+		nd.status = statusCG
+	} else {
+		// We can set nodes that don't meet the filters to was good. This will ensure they stick around for a little
+		// while so we can ask them for more addresses. Eventually they will be purged.
+		nd.status = statusWG
+	}
 	cs := nd.lastConnect
 	nd.rating = 0
 	nd.connectFails = 0

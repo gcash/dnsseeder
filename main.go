@@ -143,7 +143,7 @@ func main() {
 
 // updateNodeCounts runs in a goroutine and updates the global stats with the latest
 // counts from a startCrawlers run
-func updateNodeCounts(s *dnsseeder, tcount, fcount uint32, started, totals []uint32) {
+func updateNodeCounts(s *dnsseeder, tcount uint32, started, totals []uint32) {
 	s.counts.mtx.Lock()
 
 	for st := range []int{statusRG, statusCG, statusWG, statusNG} {
@@ -157,7 +157,7 @@ func updateNodeCounts(s *dnsseeder, tcount, fcount uint32, started, totals []uin
 	}
 
 	if config.stats {
-		log.Printf("%s: crawlers started. total nodes: %d. filtered nodes: %d\n", s.name, tcount, fcount)
+		log.Printf("%s: crawlers started. total nodes: %d\n", s.name, tcount)
 	}
 	s.counts.mtx.Unlock()
 }

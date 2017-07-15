@@ -6,7 +6,6 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/btcsuite/btcd/wire"
-	"strings"
 )
 
 // updateDNS updates the current slices of dns.RR so incoming requests get a
@@ -29,18 +28,6 @@ func updateDNS(s *dnsseeder) {
 			}
 
 			if nd.status != statusCG {
-				continue
-			}
-
-			// Filter services
-			for _, service := range s.serviceFilter {
-				if !HasService(nd.services, service) {
-					continue
-				}
-			}
-
-			// Filter version
-			if s.versionFilter != "" && !strings.Contains(strings.ToLower(nd.strVersion), strings.ToLower(s.versionFilter)) {
 				continue
 			}
 

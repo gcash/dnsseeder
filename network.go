@@ -136,7 +136,7 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 	// add some checks to the start & delay values to keep them sane
 	seeder.maxStart = []uint32{20, 20, 20, 30}
 	seeder.delay = []int64{210, 789, 234, 1876}
-	seeder.maxSize = 15000
+	seeder.maxSize = 100000
 
 	// initialize the stats counters
 	seeder.counts.NdStatus = make([]uint32, maxStatusTypes)
