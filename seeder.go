@@ -59,7 +59,7 @@ type dnsseeder struct {
 	dnsHost       string             // dns host we will serve results for this domain
 	name          string             // Short name for the network
 	desc          string             // Long description for the network
-	initialIP     string             // Initial ip address to connect to and ask for addresses if we have no seeders
+	initialIPs    []string             // Initial ip address to connect to and ask for addresses if we have no seeders
 	seeders       []string           // slice of seeders to pull ip addresses when starting this seeder
 	maxStart      []uint32           // max number of goroutines to start each run for each status type
 	delay         []int64            // number of seconds to wait before we connect to a known client for each status
@@ -113,13 +113,10 @@ func (s *dnsseeder) initSeeder() {
 		}
 	}
 
-	// load one ip address into system and start crawling from it
-	if len(s.theList) == 0 && s.initialIP != "" {
-		if newIP := net.ParseIP(s.initialIP); newIP != nil {
-			// 1 at the end is the services flag
-			if x := s.addNa(wire.NewNetAddressIPPort(newIP, s.port, 1)); x == true {
-				log.Printf("%s: crawling with initial IP %s \n", s.name, s.initialIP)
-			}
+	// load ips from the config
+	for _, ip := range s.initialIPs {
+		if newIP := net.ParseIP(ip); newIP != nil {
+			s.addNa(wire.NewNetAddressIPPort(newIP, s.port, 1));
 		}
 	}
 
@@ -128,7 +125,6 @@ func (s *dnsseeder) initSeeder() {
 		for _, v := range s.seeders {
 			log.Printf("%s: Seeder: %s\n", s.name, v)
 		}
-		log.Printf("%s: Initial IP: %s\n", s.name, s.initialIP)
 	}
 }
 
