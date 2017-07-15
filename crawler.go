@@ -83,7 +83,7 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	// Wait for the verack message or timeout in case of failure.
 	select {
 	case <-verack:
-	case <-time.After(time.Second * 3):
+	case <-time.After(time.Second * 5):
 		return nil, &crawlError{"Verack timeout", errors.New("")}
 	}
 
@@ -96,11 +96,10 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	// send getaddr command
 	p.QueueMessage(wire.NewMsgGetAddr(), nil)
 
-	var addrMsg *wire.MsgAddr
+	addrMsg := new(wire.MsgAddr)
 	select {
 	case addrMsg = <-onAddr:
-	case <-time.After(time.Second * 3):
-		return nil, &crawlError{"GetAddr timeout", errors.New("")}
+	case <-time.After(time.Second * 6):
 	}
 
 	// Disconnect the peer.
