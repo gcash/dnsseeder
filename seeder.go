@@ -57,6 +57,8 @@ type dnsseeder struct {
 	theList       map[string]*node   // the list of current nodes
 	mtx           sync.RWMutex       // protect thelist
 	dnsHost       string             // dns host we will serve results for this domain
+	nameServer    string             // the hostname of the nameserver
+	mbox          string             // E-Mail address reported in SOA records
 	name          string             // Short name for the network
 	desc          string             // Long description for the network
 	initialIPs    []string             // Initial ip address to connect to and ask for addresses if we have no seeders

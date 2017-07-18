@@ -18,6 +18,8 @@ type JNetwork struct {
 	Port          uint16
 	Pver          uint32
 	DNSName       string
+	NameServer    string
+	Mbox          string
 	TTL           uint32
 	InitialIPs    []string
 	Seeder1       string
@@ -37,7 +39,9 @@ func createNetFile() {
 		Pver:       70001,
 		TTL:        600,
 		DNSName:    "seeder.example.com",
+		NameServer: "nameserver.example.com",
 		Name:       "SeederNet",
+		Mbox:       "admin.example.com", // @ symbol replaced with period
 		Desc:       "Description of SeederNet",
 		Seeder1:    "seeder1.example.com",
 		Seeder2:    "seed1.bob.com",
@@ -98,6 +102,8 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 	seeder.name = jnw.Name
 	seeder.desc = jnw.Desc
 	seeder.dnsHost = jnw.DNSName
+	seeder.nameServer = jnw.NameServer
+	seeder.mbox = jnw.Mbox
 
 	// conver the network magic number to a Uint32
 	t1, err := strconv.ParseUint(jnw.ID, 0, 32)

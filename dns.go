@@ -6,6 +6,7 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/btcsuite/btcd/wire"
+	"time"
 )
 
 // updateDNS updates the current slices of dns.RR so incoming requests get a
@@ -99,6 +100,23 @@ func updateDNS(s *dnsseeder) {
 		}
 	}
 
+	// Add NS and SOA answers
+	r := new(dns.NS)
+	r.Hdr = dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 40000}
+	r.Ns = s.nameServer+"."
+	config.dns[s.dnsHost+".NS"] = []dns.RR{r}
+
+	r2 := new(dns.SOA)
+	r2.Hdr = dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 40000}
+	r2.Ns = s.nameServer+"."
+	r2.Mbox = s.mbox+"."
+	r2.Refresh = 604800
+	r2.Retry = 86400
+	r2.Expire = 2592000
+	r2.Minttl = 604800
+	r2.Serial = uint32(time.Now().Unix())
+	config.dns[s.dnsHost+".SOA"] = []dns.RR{r2}
+
 	config.dnsmtx.Unlock()
 
 	if config.stats {
@@ -140,6 +158,8 @@ func handleDNS(w dns.ResponseWriter, r *dns.Msg) {
 		qtype = "MX"
 	case dns.TypeNS:
 		qtype = "NS"
+	case dns.TypeSOA:
+		qtype = "SOA"
 	default:
 		qtype = "UNKNOWN"
 	}
@@ -147,6 +167,7 @@ func handleDNS(w dns.ResponseWriter, r *dns.Msg) {
 	config.dnsmtx.RLock()
 	// if the dns map does not have a key for the request it will return an empty slice
 	m.Answer = config.dns[r.Question[0].Name+qtype]
+
 	config.dnsmtx.RUnlock()
 
 	w.WriteMsg(m)
