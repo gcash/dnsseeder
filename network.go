@@ -136,6 +136,8 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 			services = append(services, SFNodeXThin)
 		case "nodesegwit2x":
 			services = append(services, SFNodeSegwit2x)
+		case "nodebitcoincash":
+			services = append(services, SFNodeBitcoinCash)
 		}
 	}
 	seeder.serviceFilter = services

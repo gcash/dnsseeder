@@ -42,6 +42,7 @@ const (
 	SFNodeWitness wire.ServiceFlag = 1 << 3
 	SFNodeXThin wire.ServiceFlag = 1 << 4
 	SFNodeSegwit2x wire.ServiceFlag = 1 << 7
+	SFNodeBitcoinCash wire.ServiceFlag = 1 << 5
 )
 
 const (
