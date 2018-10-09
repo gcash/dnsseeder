@@ -2,10 +2,9 @@ package main
 
 import (
 	"log"
-	//	"sync"
 
+	"github.com/gcash/bchd/wire"
 	"github.com/miekg/dns"
-	"github.com/btcsuite/btcd/wire"
 	"time"
 )
 
@@ -34,45 +33,51 @@ func updateDNS(s *dnsseeder) {
 
 			if t == dnsV4Std || t == dnsV4Non {
 				if t == dnsV4Std && nd.dnsType == dnsV4Std {
-					r := new(dns.A)
-					r.Hdr = dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl}
-					r.A = nd.na.IP
+					r := &dns.A{
+						Hdr: dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
+						A:   nd.na.IP,
+					}
 					rr4std = append(rr4std, r)
 					numRR++
 				}
 
 				// if the node is using a non standard port then add the encoded port info to DNS
 				if t == dnsV4Non && nd.dnsType == dnsV4Non {
-					r := new(dns.A)
-					r.Hdr = dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl}
-					r.A = nd.na.IP
+					r := &dns.A{
+						Hdr: dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
+						A:   nd.na.IP,
+					}
 					rr4non = append(rr4non, r)
 					numRR++
-					r = new(dns.A)
-					r.Hdr = dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl}
-					r.A = nd.nonstdIP
+					r = &dns.A{
+						Hdr: dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
+						A:   nd.nonstdIP,
+					}
 					rr4non = append(rr4non, r)
 					numRR++
 				}
 			}
 			if t == dnsV6Std || t == dnsV6Non {
 				if t == dnsV6Std && nd.dnsType == dnsV6Std {
-					r := new(dns.AAAA)
-					r.Hdr = dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl}
-					r.AAAA = nd.na.IP
+					r := &dns.AAAA{
+						Hdr:  dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
+						AAAA: nd.na.IP,
+					}
 					rr6std = append(rr6std, r)
 					numRR++
 				}
 				// if the node is using a non standard port then add the encoded port info to DNS
 				if t == dnsV6Non && nd.dnsType == dnsV6Non {
-					r := new(dns.AAAA)
-					r.Hdr = dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl}
-					r.AAAA = nd.na.IP
+					r := &dns.AAAA{
+						Hdr:  dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
+						AAAA: nd.na.IP,
+					}
 					rr6non = append(rr6non, r)
 					numRR++
-					r = new(dns.AAAA)
-					r.Hdr = dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl}
-					r.AAAA = nd.nonstdIP
+					r = &dns.AAAA{
+						Hdr:  dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
+						AAAA: nd.nonstdIP,
+					}
 					rr6non = append(rr6non, r)
 					numRR++
 				}
@@ -101,20 +106,23 @@ func updateDNS(s *dnsseeder) {
 	}
 
 	// Add NS and SOA answers
-	r := new(dns.NS)
-	r.Hdr = dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 40000}
-	r.Ns = s.nameServer+"."
+	r := &dns.NS{
+		Hdr: dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 40000},
+		Ns:  s.nameServer + ".",
+	}
+
 	config.dns[s.dnsHost+".NS"] = []dns.RR{r}
 
-	r2 := new(dns.SOA)
-	r2.Hdr = dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 40000}
-	r2.Ns = s.nameServer+"."
-	r2.Mbox = s.mbox+"."
-	r2.Refresh = 604800
-	r2.Retry = 86400
-	r2.Expire = 2592000
-	r2.Minttl = 604800
-	r2.Serial = uint32(time.Now().Unix())
+	r2 := &dns.SOA{
+		Hdr:     dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 40000},
+		Ns:      s.nameServer + ".",
+		Mbox:    s.mbox + ".",
+		Refresh: 604800,
+		Retry:   86400,
+		Expire:  2592000,
+		Minttl:  604800,
+		Serial:  uint32(time.Now().Unix()),
+	}
 	config.dns[s.dnsHost+".SOA"] = []dns.RR{r2}
 
 	config.dnsmtx.Unlock()

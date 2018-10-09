@@ -1,6 +1,3 @@
-/*
-
- */
 package main
 
 import (
@@ -216,7 +213,3 @@ func updateDNSCounts(name, qtype string) {
 		atomic.AddUint64(&config.dnsUnknown, 1)
 	}
 }
-
-/*
-
- */

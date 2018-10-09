@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/peer"
 	"errors"
+	"github.com/gcash/bchd/chaincfg"
+	"github.com/gcash/bchd/peer"
+	"github.com/gcash/bchd/wire"
 )
 
 type crawlError struct {
@@ -45,12 +45,12 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	verack := make(chan struct{})
 	onAddr := make(chan *wire.MsgAddr)
 	peerCfg := &peer.Config{
-		UserAgentName:    "bitcoin-seeder",  // User agent name to advertise.
-		UserAgentVersion: "1.0.0", // User agent version to advertise.
+		UserAgentName:    "bitcoin-seeder", // User agent name to advertise.
+		UserAgentVersion: "1.0.0",          // User agent version to advertise.
 		ChainParams:      &chaincfg.MainNetParams,
 		Services:         0,
 		Listeners: peer.MessageListeners{
-			OnAddr:  func(p *peer.Peer, msg *wire.MsgAddr) {
+			OnAddr: func(p *peer.Peer, msg *wire.MsgAddr) {
 				onAddr <- msg
 			},
 			OnVersion: func(p *peer.Peer, msg *wire.MsgVersion) {

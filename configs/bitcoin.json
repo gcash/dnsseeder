@@ -1,20 +1,15 @@
 {
- "Name": "BitcoinNet",
- "Desc": "Bitcoin Main Net",
- "Id": "0xd9b4bef9",
- "Port": 8333,
- "Pver": 70001,
- "DNSName": "btcseed.zagbot.com",
- "TTL": 600,
- "Seeder1": "dnsseed.bluematt.me",
- "Seeder2": "bitseed.xf2.org",
- "Seeder3": "dnsseed.bitcoin.dashjr.org",
- "ServiceFilter": [
-  "NodeNetwork",
-  "NodeBloom",
-  "NodeGetUTXO",
-  "NodeXThin",
-  "NodeWitness"
- ],
- "VersionFilter": "Satoshi:1."
+  "Name": "Mainnet",
+  "Desc": "Bitcoin Cash Mainnet",
+  "Id": "0xe8f3e1e3",
+  "Port": 8333,
+  "Pver": 70001,
+  "DNSName": "seeder.example.com",
+  "TTL": 600,
+  "Seeder1": "seed.bitcoinabc.org",
+  "Seeder2": "seed-abc.bitcoinforks.org",
+  "Seeder3": "btccash-seeder.bitcoinunlimited.info",
+  "ServiceFilter": [
+    "NodeNetwork"
+  ]
 }

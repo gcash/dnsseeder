@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/btcsuite/btcd/wire"
+	"github.com/gcash/bchd/wire"
 	"strings"
 )
 
@@ -39,9 +39,9 @@ const (
 )
 
 const (
-	SFNodeWitness wire.ServiceFlag = 1 << 3
-	SFNodeXThin wire.ServiceFlag = 1 << 4
-	SFNodeSegwit2x wire.ServiceFlag = 1 << 7
+	SFNodeWitness     wire.ServiceFlag = 1 << 3
+	SFNodeXThin       wire.ServiceFlag = 1 << 4
+	SFNodeSegwit2x    wire.ServiceFlag = 1 << 7
 	SFNodeBitcoinCash wire.ServiceFlag = 1 << 5
 )
 
@@ -63,7 +63,7 @@ type dnsseeder struct {
 	mbox          string             // E-Mail address reported in SOA records
 	name          string             // Short name for the network
 	desc          string             // Long description for the network
-	initialIPs    []string             // Initial ip address to connect to and ask for addresses if we have no seeders
+	initialIPs    []string           // Initial ip address to connect to and ask for addresses if we have no seeders
 	seeders       []string           // slice of seeders to pull ip addresses when starting this seeder
 	maxStart      []uint32           // max number of goroutines to start each run for each status type
 	delay         []int64            // number of seconds to wait before we connect to a known client for each status
@@ -120,7 +120,7 @@ func (s *dnsseeder) initSeeder() {
 	// load ips from the config
 	for _, ip := range s.initialIPs {
 		if newIP := net.ParseIP(ip); newIP != nil {
-			s.addNa(wire.NewNetAddressIPPort(newIP, s.port, 1));
+			s.addNa(wire.NewNetAddressIPPort(newIP, s.port, 1))
 		}
 	}
 
@@ -531,7 +531,7 @@ func (s *dnsseeder) auditNodes() {
 
 }
 
-// teatload loads the dns records with time based test data
+// loadDNS loads the dns records with time based test data
 func (s *dnsseeder) loadDNS() {
 	updateDNS(s)
 }
@@ -560,7 +560,3 @@ func isDuplicateSeeder(s *dnsseeder) (bool, error) {
 	}
 	return false, nil
 }
-
-/*
-
- */
