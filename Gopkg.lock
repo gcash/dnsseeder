@@ -19,7 +19,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:34e78abc86a0489e7ae84fb2f3dbed1bf27e679b17a2503a937d946a6d7c6ac6"
+  digest = "1:541a98b45f2b448e12d4038efacd13f5d4df838e3af5b1aad03b66c174c31c23"
   name = "github.com/gcash/bchd"
   packages = [
     "bchec",
@@ -32,7 +32,7 @@
     "wire",
   ]
   pruneopts = "UT"
-  revision = "3049cb1e3e5c930cad8e8b8bdf682e2796dfa08c"
+  revision = "a75a80a1115a9925d3d2d91c7804eb8a2a3c5c54"
 
 [[projects]]
   branch = "master"

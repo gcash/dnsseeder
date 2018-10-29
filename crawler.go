@@ -53,7 +53,7 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 			OnAddr: func(p *peer.Peer, msg *wire.MsgAddr) {
 				onAddr <- msg
 			},
-			OnVersion: func(p *peer.Peer, msg *wire.MsgVersion) {
+			OnVersion: func(p *peer.Peer, msg *wire.MsgVersion) *wire.MsgReject{
 				if config.debug {
 					log.Printf("%s - debug - %s - Remote version: %v\n", s.name, r.node, msg.ProtocolVersion)
 				}
@@ -62,6 +62,7 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 				r.services = msg.Services
 				r.lastBlock = msg.LastBlock
 				r.strVersion = msg.UserAgent
+				return nil
 			},
 			OnVerAck: func(p *peer.Peer, msg *wire.MsgVerAck) {
 				verack <- struct{}{}
