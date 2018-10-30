@@ -22,4 +22,4 @@ RUN go install .
 ENTRYPOINT ["dnsseeder", "-s", "-d", "-netfile=configs/mainnet-all.json,configs/mainnet-filtered.json"]
 
 # Document that the service listens on port 8053.
-EXPOSE 8053/udp 8053/tcp
+EXPOSE 8053/udp

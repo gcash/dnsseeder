@@ -49,7 +49,7 @@ docker build . -t dnsseeder
 To run the image with both TCP and UDP support:
 
 ```
-docker run -p 8053:8053 -p 8053:8053/udp dnsseeder
+docker run -p 8053:8053/udp dnsseeder
 ```
 
 This starts the dnsseeder on port 8053. You will need root to bind to
