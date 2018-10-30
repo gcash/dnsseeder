@@ -19,7 +19,7 @@ RUN go install .
 
 # Set the start command.
 # -s -d -netfile=mainnet-all.json,mainnet-filtered.json
-ENTRYPOINT ["dnsseeder", "-s", "-d", "-netfile=mainnet-all.json,mainnet-filtered.json"]
+ENTRYPOINT ["dnsseeder", "-s", "-d", "-netfile=configs/mainnet-all.json,configs/mainnet-filtered.json"]
 
 # Document that the service listens on port 53.
 EXPOSE 53

@@ -1,6 +1,6 @@
 {
   "Name": "Mainnet All",
-  "Desc": "Bitcoin Cash Mainnet - all nodes",
+  "Desc": "Bitcoin Cash Mainnet - All",
   "Id": "0xe8f3e1e3",
   "Port": 8333,
   "Pver": 70001,
