@@ -4,22 +4,31 @@ FROM golang
 
 LABEL maintainer="Josh Ellithorpe <quest@mac.com>"
 
-# Copy the local package files to the container's workspace.
-ADD . /go/src/github.com/gcash/dnsseeder
-
-# Switch to the correct working directory.
 WORKDIR /go/src/github.com/gcash/dnsseeder
 
-# Restore vendored packages.
+# Install dep
 RUN go get -u github.com/golang/dep/cmd/dep
+
+# Copy the local package files to the container's workspace.
+COPY . .
+
+# Restore vendored packages.
 RUN dep ensure
 
-# Build the code and the cli client.
-RUN go install .
+# Build static binary
+RUN CGO_ENABLED=0 go build --ldflags '-extldflags "-static"' -o /bin/dnsseeder .
 
-# Set the start command.
-# -s -d -netfile=mainnet-all.json,mainnet-filtered.json
-ENTRYPOINT ["dnsseeder", "-s", "-d", "-netfile=configs/mainnet-all.json,configs/mainnet-filtered.json"]
+# Create final image
+FROM scratch
+WORKDIR /var/lib/dnsseeder
 
 # Document that the service listens on port 8053.
 EXPOSE 8053/udp
+
+# Copy SSL CA certa, configs, and the binary from build image to final image
+COPY --from=0 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=0 /go/src/github.com/gcash/dnsseeder/configs/ ./
+COPY --from=0 /bin/dnsseeder /bin/dnsseeder
+
+# Start dnsseeder
+ENTRYPOINT ["/bin/dnsseeder", "-s", "-d", "-netfile=mainnet-all.json,mainnet-filtered.json"]
