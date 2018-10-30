@@ -49,10 +49,10 @@ docker build . -t dnsseeder
 To run the image with both TCP and UDP support:
 
 ```
-docker run -p 5353:53 -p 5353:53/udp dnsseeder
+docker run -p 8053:8053 -p 8053:8053/udp dnsseeder
 ```
 
-This starts the dnsseeder on port 5353. You will need root to bind to
+This starts the dnsseeder on port 8053. You will need root to bind to
 port 53 directly.
 
 ## Configuring DNS
@@ -66,10 +66,9 @@ Typically, you'll need root privileges to listen to port 53 (name service).
 One solution is using an iptables rule (Linux only) to redirect it to
 a non-privileged port:
 
-$ iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-port 5353
+$ iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-port 8053
 
-If properly configured, this will allow you to run dnsseeder in userspace, using
-the -p 5353 option.
+If properly configured, this will allow you to run dnsseeder in userspace, using the -p 8053 option.
 
 ## License
 Apache 2.0
