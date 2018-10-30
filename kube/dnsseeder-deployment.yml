@@ -22,4 +22,9 @@ spec:
         resources:
           requests:
             memory: "64Mi"
+        ports:
+        - containerPort: 53
+          protocol: UDP
+        - containerPort: 53
+          protocol: TCP
       restartPolicy: Always
