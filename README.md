@@ -38,6 +38,23 @@ Command line Options:
 -w Port to listen on for Web Interface
 ```
 
+## Docker
+
+Building and running `dnsseeder` in docker is quite painless. To build the image:
+
+```
+docker build . -t dnsseeder
+```
+
+To run the image with both TCP and UDP support:
+
+```
+docker run -p 5353:53 -p 5353:53/udp dnsseeder
+```
+
+This starts the dnsseeder on port 5353. You will need root to bind to
+port 53 directly.
+
 ## Configuring DNS
 
 If you want to seed peers on `seed.example.com`, say, and this software is running on `vps.example.com` then you need to put a `NS` record into the `seed.example.com` DNS record pointing to `vps.example.com`.
@@ -54,10 +71,7 @@ $ iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-port 5353
 If properly configured, this will allow you to run dnsseeder in userspace, using
 the -p 5353 option.
 
-
 ## License
 Apache 2.0
 
 For the DNS library license see https://github.com/miekg/dns
-
-

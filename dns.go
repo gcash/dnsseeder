@@ -195,10 +195,7 @@ func serve(net, port string) {
 	}
 }
 
+// HasService checks if a certain service flag is set.
 func HasService(services wire.ServiceFlag, flag wire.ServiceFlag) bool {
 	return services&flag == flag
 }
-
-/*
-
- */

@@ -32,7 +32,7 @@
     "wire",
   ]
   pruneopts = "UT"
-  revision = "a75a80a1115a9925d3d2d91c7804eb8a2a3c5c54"
+  revision = "6f8ce2c0aff6f12ecfccfa61f2e48c31af55605a"
 
 [[projects]]
   branch = "master"
@@ -44,30 +44,56 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a3a39ea83ca6de6a8ec201c7179142f89019a7520048b41e1e7f7dff5fc1e252"
+  digest = "1:531a7256e00de32f6fb5597b1326d322e15b7ceed533813fb16d4e4e3c21c281"
   name = "github.com/gcash/bchutil"
   packages = [
     ".",
     "base58",
   ]
   pruneopts = "UT"
-  revision = "723ab93d2b4a9a36c385e44f547433d0a3417c35"
+  revision = "d51537ee11a6e6c31ba74f4b4accbc0edaf7a5d4"
 
 [[projects]]
   branch = "master"
-  digest = "1:c080e309b430c2f0d305c61827a5fcee8bd76289d7e6cbcfc91db31758c45539"
+  digest = "1:c22d250c583ec1136ecad8b74a43f408c08ddbbcbae715341ec4a49f332628e0"
   name = "github.com/miekg/dns"
   packages = ["."]
   pruneopts = "UT"
-  revision = "193f91db0b8cd713863aeab710f35381472b2e8e"
+  revision = "915ca3d5ffd945235828a097c917311a9d86ebb4"
 
 [[projects]]
   branch = "master"
-  digest = "1:f804354850ef747f20e387a75e04dfc64a205ab342f7086b7d77796865ff5ede"
+  digest = "1:5907f9aeba563d9e5586714750b3467514defe690470612c4828b12dd404bb58"
   name = "golang.org/x/crypto"
-  packages = ["ripemd160"]
+  packages = [
+    "ed25519",
+    "ed25519/internal/edwards25519",
+    "ripemd160",
+  ]
   pruneopts = "UT"
-  revision = "0e37d006457bf46f9e6692014ba72ef82c33022c"
+  revision = "bc7917b19d8f099105de72dc62898400be07c984"
+
+[[projects]]
+  branch = "master"
+  digest = "1:40a3cfcb660b2f6354f669eb8cbea46b5a308b42f349782147301ab66fb57184"
+  name = "golang.org/x/net"
+  packages = [
+    "bpf",
+    "internal/iana",
+    "internal/socket",
+    "ipv4",
+    "ipv6",
+  ]
+  pruneopts = "UT"
+  revision = "c44066c5c816ec500d459a2a324a753f78531ae0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:fbacfb57e3d052810813bca2d48c22fbde916ecfc4a2bac08df30ed6e9e59759"
+  name = "golang.org/x/sys"
+  packages = ["unix"]
+  pruneopts = "UT"
+  revision = "d69651ed3497faee15a5363a89578e9991f6d5e2"
 
 [solve-meta]
   analyzer-name = "dep"

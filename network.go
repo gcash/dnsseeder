@@ -156,7 +156,7 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 		seeder.ttl = 60
 	}
 
-	if dup, err := isDuplicateSeeder(seeder); dup == true {
+	if dup, err := isDuplicateSeeder(seeder); dup {
 		return nil, err
 	}
 
