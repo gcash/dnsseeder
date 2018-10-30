@@ -17,7 +17,8 @@ Originally forked from https://github.com/gombadi/dnsseederd
 
 Simply use go get to download the code:
 
-    $ go get github.com/gombadi/dnsseeder
+    $ go get github.com/gcash/dnsseeder
+    $ dep ensure
 
 ## Usage
 
@@ -36,6 +37,10 @@ Command line Options:
 -v Produce verbose output
 -w Port to listen on for Web Interface
 ```
+
+## Configuring DNS
+
+If you want to seed peers on `seed.example.com`, say, and this software is running on `vps.example.com` then you need to put a `NS` record into the `seed.example.com` DNS record pointing to `vps.example.com`.
 
 ## RUNNING AS NON-ROOT
 
