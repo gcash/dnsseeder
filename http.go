@@ -376,7 +376,7 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 
 	k := r.FormValue("nd")
 	writeHeader(w, r)
-	if _, ok := s.theList[k]; ok == false {
+	if _, ok := s.theList[k]; !ok {
 		fmt.Fprintf(w, "Sorry there is no Node with those details\n")
 	} else {
 

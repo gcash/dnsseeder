@@ -1,0 +1,25 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: default
+  labels:
+    service: dnsseeder
+  name: dnsseeder
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        service: dnsseeder
+    spec:
+      containers:
+      - image: zquestz/dnsseeder:latest
+        command: ["dnsseeder"]
+        args: ["-s", "-d", "-netfile=mainnet-all.json,mainnet-filtered.json"]
+        name: dnsseeder
+        resources:
+          requests:
+            memory: "64Mi"
+      restartPolicy: Always

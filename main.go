@@ -59,7 +59,7 @@ func main() {
 	flag.BoolVar(&config.stats, "s", false, "Display stats output")
 	flag.Parse()
 
-	if j == true {
+	if j {
 		createNetFile()
 		fmt.Printf("Template file has been created\n")
 		os.Exit(0)
@@ -88,11 +88,11 @@ func main() {
 		}
 	}
 
-	if config.debug == true {
+	if config.debug {
 		config.verbose = true
 		config.stats = true
 	}
-	if config.verbose == true {
+	if config.verbose {
 		config.stats = true
 	}
 
@@ -100,7 +100,7 @@ func main() {
 		log.Printf("status - system is configured for network: %s\n", v.name)
 	}
 
-	if config.verbose == false {
+	if !config.verbose {
 		log.Printf("status - Running in quiet mode with limited output produced\n")
 	}
 
@@ -209,7 +209,7 @@ func updateDNSCounts(name, qtype string) {
 		}
 		s.counts.mtx.Unlock()
 	}
-	if counted != true {
+	if !counted {
 		atomic.AddUint64(&config.dnsUnknown, 1)
 	}
 }

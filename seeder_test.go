@@ -56,7 +56,7 @@ func TestAddnNa(t *testing.T) {
 		ndName := net.JoinHostPort(na.IP.String(), strconv.Itoa(int(na.Port)))
 
 		result := s.addNa(na)
-		if result != true {
+		if !result {
 			t.Errorf("failed to create new node: %s", ndName)
 		}
 		if s.theList[ndName].dnsType != atest.dnsType {
@@ -71,7 +71,7 @@ func TestAddnNa(t *testing.T) {
 	na := wire.NewNetAddress(tcpAddr, 0)
 	result := s.addNa(na)
 
-	if result != false {
+	if result {
 		t.Errorf("node added but should have failed as seeder full: %s", net.JoinHostPort(na.IP.String(), strconv.Itoa(int(na.Port))))
 	}
 
@@ -82,12 +82,8 @@ func TestAddnNa(t *testing.T) {
 	na = wire.NewNetAddress(tcpAddr, 0)
 	result = s.addNa(na)
 
-	if result != false {
+	if result {
 		t.Errorf("node added but should have failed as duplicate: %s", net.JoinHostPort(na.IP.String(), strconv.Itoa(int(na.Port))))
 	}
 
 }
-
-/*
-
- */

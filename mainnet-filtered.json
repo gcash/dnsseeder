@@ -1,0 +1,17 @@
+{
+  "Name": "Mainnet Filtered",
+  "Desc": "Bitcoin Cash Mainnet - filtered",
+  "Id": "0xe8f3e1e3",
+  "Port": 8333,
+  "Pver": 70001,
+  "DNSName": "x105.seed.bchd.cash",
+  "TTL": 600,
+  "Seeder1": "seed.bitcoinabc.org",
+  "Seeder2": "seed-abc.bitcoinforks.org",
+  "Seeder3": "btccash-seeder.bitcoinunlimited.info",
+  "ServiceFilter": [
+    "NodeNetwork",
+    "NodeCF",
+    "NodeBloom"
+  ]
+}

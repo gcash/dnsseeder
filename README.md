@@ -37,6 +37,23 @@ Command line Options:
 -w Port to listen on for Web Interface
 ```
 
+## Docker
+
+Building and running `dnsseeder` in docker is quite painless. To build the image:
+
+```
+docker build . -t dnsseeder
+```
+
+To run the image with both TCP and UDP support:
+
+```
+docker run -p 5353:53 -p 5353:53/udp dnsseeder
+```
+
+This starts the dnsseeder on port 5353. You will need root to bind to
+port 53 directly.
+
 ## RUNNING AS NON-ROOT
 
 Typically, you'll need root privileges to listen to port 53 (name service).
@@ -48,7 +65,6 @@ $ iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-port 5353
 
 If properly configured, this will allow you to run dnsseeder in userspace, using
 the -p 5353 option.
-
 
 ## License
 Apache 2.0
