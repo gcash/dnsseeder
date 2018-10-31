@@ -88,7 +88,7 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 		return nil, &crawlError{"Verack timeout", errors.New("")}
 	}
 
-	// if we get this far and if the seeder is full then don't ask for addresses. This will reduce bandwith usage while still
+	// if we get this far and if the seeder is full then don't ask for addresses. This will reduce bandwidth usage while still
 	// confirming that we can connect to the remote node
 	if len(s.theList) > s.maxSize {
 		return nil, nil

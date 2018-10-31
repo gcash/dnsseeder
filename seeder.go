@@ -281,7 +281,7 @@ func (s *dnsseeder) processResult(r *result) {
 		return
 	}
 
-	// succesful connection and addresses received so check filters then mark status
+	// successful connection and addresses received so check filters then mark status
 	filtered := false
 	for _, service := range s.serviceFilter {
 		if !HasService(r.services, service) {

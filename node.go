@@ -10,7 +10,7 @@ import (
 // Node struct contains details on one client
 type node struct {
 	na           *wire.NetAddress // holds ip address & port details
-	lastConnect  time.Time        // last time we sucessfully connected to this client
+	lastConnect  time.Time        // last time we successfully connected to this client
 	lastTry      time.Time        // last time we tried to connect to this client
 	crawlStart   time.Time        // time when we started the last crawl
 	nonstdIP     net.IP           // if not using the default port then this is the encoded ip containing the actual port

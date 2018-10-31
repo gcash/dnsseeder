@@ -164,7 +164,7 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 	writeFooter(w, r, st)
 }
 
-// emptyHandler processes all requests for non-existant urls
+// emptyHandler processes all requests for non-existent urls
 func emptyHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
