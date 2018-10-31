@@ -17,7 +17,7 @@ spec:
       containers:
       - image: zquestz/dnsseeder:latest
         command: ["dnsseeder"]
-        args: ["-s", "-d", "-netfile=configs/mainnet-all.json,configs/mainnet-filtered.json"]
+        args: ["-s", "-d", "-netfile=mainnet-all.json,mainnet-filtered.json"]
         name: dnsseeder
         resources:
           requests:
