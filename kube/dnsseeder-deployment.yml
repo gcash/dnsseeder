@@ -21,7 +21,7 @@ spec:
         name: dnsseeder
         resources:
           requests:
-            memory: "64Mi"
+            memory: "3Gi"
         ports:
         - containerPort: 8053
           protocol: UDP
