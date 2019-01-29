@@ -31,4 +31,4 @@ COPY --from=0 /go/src/github.com/gcash/dnsseeder/configs/ ./
 COPY --from=0 /bin/dnsseeder /bin/dnsseeder
 
 # Start dnsseeder
-ENTRYPOINT ["/bin/dnsseeder", "-s", "-d", "-netfile=mainnet-all.json,mainnet-filtered.json"]
+ENTRYPOINT ["/bin/dnsseeder", "-s", "-d", "-netfile=mainnet-all.json,mainnet-filtered.json,mainnet-node-cf.json"]
