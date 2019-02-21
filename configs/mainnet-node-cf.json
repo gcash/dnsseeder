@@ -1,5 +1,5 @@
 {
-  "Name": "Mainnet Filtered CF",
+  "Name": "Mainnet Node CF",
   "Desc": "Bitcoin Cash Mainnet - NodeCF",
   "Id": "0xe8f3e1e3",
   "Port": 8333,
