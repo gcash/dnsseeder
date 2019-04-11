@@ -12,21 +12,21 @@ import (
 
 // JNetwork is the exported struct that is read from the network file
 type JNetwork struct {
-	Name          string
-	Desc          string
-	ID            string
-	Port          uint16
-	Pver          uint32
-	DNSName       string
-	NameServer    string
-	Mbox          string
-	TTL           uint32
-	InitialIPs    []string
-	Seeder1       string
-	Seeder2       string
-	Seeder3       string
-	ServiceFilter []string
-	VersionFilter string
+	Name            string
+	Desc            string
+	ID              string
+	Port            uint16
+	Pver            uint32
+	DNSName         string
+	NameServer      string
+	Mbox            string
+	TTL             uint32
+	InitialIPs      []string
+	Seeder1         string
+	Seeder2         string
+	Seeder3         string
+	ServiceFilter   []string
+	UserAgentFilter []string
 }
 
 func createNetFile() {
@@ -139,7 +139,7 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 		}
 	}
 	seeder.serviceFilter = services
-	seeder.versionFilter = jnw.VersionFilter
+	seeder.userAgentFilter = jnw.UserAgentFilter
 
 	// add some checks to the start & delay values to keep them sane
 	seeder.maxStart = []uint32{20, 20, 20, 30}

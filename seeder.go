@@ -5,11 +5,11 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gcash/bchd/wire"
-	"strings"
 )
 
 const (
@@ -48,25 +48,25 @@ const (
 )
 
 type dnsseeder struct {
-	id            wire.BitcoinNet    // Magic number - Unique ID for this network. Sent in header of all messages
-	theList       map[string]*node   // the list of current nodes
-	mtx           sync.RWMutex       // protect thelist
-	dnsHost       string             // dns host we will serve results for this domain
-	nameServer    string             // the hostname of the nameserver
-	mbox          string             // E-Mail address reported in SOA records
-	name          string             // Short name for the network
-	desc          string             // Long description for the network
-	initialIPs    []string           // Initial ip address to connect to and ask for addresses if we have no seeders
-	seeders       []string           // slice of seeders to pull ip addresses when starting this seeder
-	maxStart      []uint32           // max number of goroutines to start each run for each status type
-	delay         []int64            // number of seconds to wait before we connect to a known client for each status
-	counts        NodeCounts         // structure to hold stats for this seeder
-	pver          uint32             // minimum block height for the seeder
-	ttl           uint32             // DNS TTL to use for this seeder
-	maxSize       int                // max number of clients before we start restricting new entries
-	port          uint16             // default network port this seeder uses
-	serviceFilter []wire.ServiceFlag // Only respond to DNS query with nodes that support this filter
-	versionFilter string             // Only respond to dns queries with nodes whose useragent contains this string
+	id              wire.BitcoinNet    // Magic number - Unique ID for this network. Sent in header of all messages
+	theList         map[string]*node   // the list of current nodes
+	mtx             sync.RWMutex       // protect thelist
+	dnsHost         string             // dns host we will serve results for this domain
+	nameServer      string             // the hostname of the nameserver
+	mbox            string             // E-Mail address reported in SOA records
+	name            string             // Short name for the network
+	desc            string             // Long description for the network
+	initialIPs      []string           // Initial ip address to connect to and ask for addresses if we have no seeders
+	seeders         []string           // slice of seeders to pull ip addresses when starting this seeder
+	maxStart        []uint32           // max number of goroutines to start each run for each status type
+	delay           []int64            // number of seconds to wait before we connect to a known client for each status
+	counts          NodeCounts         // structure to hold stats for this seeder
+	pver            uint32             // minimum block height for the seeder
+	ttl             uint32             // DNS TTL to use for this seeder
+	maxSize         int                // max number of clients before we start restricting new entries
+	port            uint16             // default network port this seeder uses
+	serviceFilter   []wire.ServiceFlag // Only respond to DNS query with nodes that support this filter
+	userAgentFilter []string           // Only respond to dns queries with nodes whose useragent contains this string
 }
 
 type result struct {
@@ -286,10 +286,14 @@ func (s *dnsseeder) processResult(r *result) {
 	for _, service := range s.serviceFilter {
 		if !HasService(r.services, service) {
 			filtered = true
+			break
 		}
 	}
-	if s.versionFilter != "" && !strings.Contains(strings.ToLower(r.strVersion), strings.ToLower(s.versionFilter)) {
-		filtered = true
+	for _, ua := range s.userAgentFilter {
+		if !strings.Contains(strings.ToLower(r.strVersion), strings.ToLower(ua)) {
+			filtered = true
+			break
+		}
 	}
 
 	if !filtered {

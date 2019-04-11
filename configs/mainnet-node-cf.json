@@ -12,5 +12,8 @@
   "ServiceFilter": [
     "NodeNetwork",
     "NodeCF"
+  ],
+  "UserAgentFilter": [
+    "bchd:0.14.1"
   ]
 }
