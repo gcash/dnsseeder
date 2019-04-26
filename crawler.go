@@ -27,7 +27,7 @@ func (e *crawlError) Error() string {
 func crawlNode(rc chan *result, s *dnsseeder, nd *node) {
 
 	res := &result{
-		node: net.JoinHostPort(nd.na.IP.String(), strconv.Itoa(int(nd.na.Port))),
+		node: net.JoinHostPort(nd.NA.IP.String(), strconv.Itoa(int(nd.NA.Port))),
 	}
 
 	// connect to the remote ip and ask them for their addr list

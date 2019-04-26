@@ -59,8 +59,8 @@ func TestAddnNa(t *testing.T) {
 		if !result {
 			t.Errorf("failed to create new node: %s", ndName)
 		}
-		if s.theList[ndName].dnsType != atest.dnsType {
-			t.Errorf("node: %s dnsType:%v expected: %v", ndName, s.theList[ndName].dnsType, atest.dnsType)
+		if s.theList[ndName].DnsType != atest.dnsType {
+			t.Errorf("node: %s dnsType:%v expected: %v", ndName, s.theList[ndName].DnsType, atest.dnsType)
 		}
 	}
 

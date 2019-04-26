@@ -6,6 +6,7 @@ import (
 	"github.com/gcash/bchd/wire"
 	"log"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -160,9 +161,15 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 		return nil, err
 	}
 
+	cacheFile, err := os.Open(path.Join(config.dataDir, fmt.Sprintf("%s.json", seeder.name)))
+	if err == nil {
+		defer cacheFile.Close()
+		jsonParser := json.NewDecoder(cacheFile)
+		if err = jsonParser.Decode(&seeder.theList); err != nil {
+			log.Printf("Error decoding cache file: %v", err)
+		}
+		log.Printf("Loaded %d nodes from %s cache\n", len(seeder.theList), seeder.name)
+	}
+
 	return seeder, nil
 }
-
-/*
-
- */

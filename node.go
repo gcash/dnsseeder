@@ -9,26 +9,26 @@ import (
 
 // Node struct contains details on one client
 type node struct {
-	na           *wire.NetAddress // holds ip address & port details
-	lastConnect  time.Time        // last time we successfully connected to this client
-	lastTry      time.Time        // last time we tried to connect to this client
-	crawlStart   time.Time        // time when we started the last crawl
-	nonstdIP     net.IP           // if not using the default port then this is the encoded ip containing the actual port
-	statusStr    string           // string with last error or OK details
-	strVersion   string           // remote client user agent
-	services     wire.ServiceFlag // remote client supported services
-	connectFails uint32           // number of times we have failed to connect to this client
-	version      int32            // remote client protocol version
-	lastBlock    int32            // remote client last block
-	status       uint32           // rg,cg,wg,ng
-	rating       uint32           // if it reaches 100 then we mark them statusNG
-	dnsType      uint32           // what dns type this client is
-	crawlActive  bool             // are we currently crawling this client
+	NA           *wire.NetAddress // holds ip address & port details
+	LastConnect  time.Time        // last time we successfully connected to this client
+	LastTry      time.Time        // last time we tried to connect to this client
+	CrawlStart   time.Time        // time when we started the last crawl
+	NonstdIP     net.IP           // if not using the default port then this is the encoded ip containing the actual port
+	StatusStr    string           // string with last error or OK details
+	StrVersion   string           // remote client user agent
+	Services     wire.ServiceFlag // remote client supported services
+	ConnectFails uint32           // number of times we have failed to connect to this client
+	Version      int32            // remote client protocol version
+	LastBlock    int32            // remote client last block
+	Status       uint32           // rg,cg,wg,ng
+	Rating       uint32           // if it reaches 100 then we mark them statusNG
+	DnsType      uint32           // what dns type this client is
+	CrawlActive  bool             // are we currently crawling this client
 }
 
 // dns2str will return the string description of the dns type
 func (nd node) dns2str() string {
-	switch nd.dnsType {
+	switch nd.DnsType {
 	case dnsV4Std:
 		return "v4 standard port"
 	case dnsV4Non:
@@ -41,7 +41,3 @@ func (nd node) dns2str() string {
 		return "Unknown DNS Type"
 	}
 }
-
-/*
-
- */

@@ -268,32 +268,32 @@ func generateWebStatus(s *dnsseeder, status uint32) (ws []webstatus) {
 	var valueStr string
 
 	for k, v := range s.theList {
-		if v.status != status {
+		if v.Status != status {
 			continue
 		}
 
 		switch status {
 		case statusRG:
 			valueStr = fmt.Sprintf("<b>Fail Count:</b> %v <b>DNS Type:</b> %s",
-				v.connectFails,
+				v.ConnectFails,
 				v.dns2str())
 		case statusCG:
 			valueStr = fmt.Sprintf("<b>Remote Version:</b> %v%s <b>Last Block:</b> %v <b>DNS Type:</b> %s",
-				v.version,
-				v.strVersion,
-				v.lastBlock,
+				v.Version,
+				v.StrVersion,
+				v.LastBlock,
 				v.dns2str())
 
 		case statusWG:
 			valueStr = fmt.Sprintf("<b>Last Try:</b> %s ago <b>Last Status:</b> %s\n",
-				time.Since(v.lastTry).String(),
-				v.statusStr)
+				time.Since(v.LastTry).String(),
+				v.StatusStr)
 
 		case statusNG:
 			valueStr = fmt.Sprintf("<b>Fail Count:</b> %v <b>Last Try:</b> %s ago <b>Last Status:</b> %s\n",
-				v.connectFails,
-				time.Since(v.lastTry).String(),
-				v.statusStr)
+				v.ConnectFails,
+				time.Since(v.LastTry).String(),
+				v.StatusStr)
 
 		default:
 			valueStr = ""
@@ -382,23 +382,23 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 
 		nd := s.theList[k]
 		wt := webtemplate{
-			IP:             nd.na.IP.String(),
-			Port:           nd.na.Port,
+			IP:             nd.NA.IP.String(),
+			Port:           nd.NA.Port,
 			Dnstype:        nd.dns2str(),
-			Nonstdip:       nd.nonstdIP.String(),
-			Statusstr:      nd.statusStr,
-			Lastconnect:    nd.lastConnect.String(),
-			Lastconnectago: time.Since(nd.lastConnect).String(),
-			Lasttry:        nd.lastTry.String(),
-			Lasttryago:     time.Since(nd.lastTry).String(),
-			Crawlstart:     nd.crawlStart.String(),
-			Crawlstartago:  time.Since(nd.crawlStart).String(),
-			Connectfails:   nd.connectFails,
-			Crawlactive:    nd.crawlActive,
-			Version:        nd.version,
-			Strversion:     nd.strVersion,
-			Services:       nd.services.String(),
-			Lastblock:      nd.lastBlock,
+			Nonstdip:       nd.NonstdIP.String(),
+			Statusstr:      nd.StatusStr,
+			Lastconnect:    nd.LastConnect.String(),
+			Lastconnectago: time.Since(nd.LastConnect).String(),
+			Lasttry:        nd.LastTry.String(),
+			Lasttryago:     time.Since(nd.LastTry).String(),
+			Crawlstart:     nd.CrawlStart.String(),
+			Crawlstartago:  time.Since(nd.CrawlStart).String(),
+			Connectfails:   nd.ConnectFails,
+			Crawlactive:    nd.CrawlActive,
+			Version:        nd.Version,
+			Strversion:     nd.StrVersion,
+			Services:       nd.Services.String(),
+			Lastblock:      nd.LastBlock,
 		}
 
 		// display details for the Node
