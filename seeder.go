@@ -282,21 +282,23 @@ func (s *dnsseeder) processResult(r *result) {
 	}
 
 	// successful connection and addresses received so check filters then mark status
-	filtered := false
+	matchesServiceFilter := true
 	for _, service := range s.serviceFilter {
 		if !HasService(r.services, service) {
-			filtered = true
-			break
-		}
-	}
-	for _, ua := range s.userAgentFilter {
-		if !strings.Contains(strings.ToLower(r.strVersion), strings.ToLower(ua)) {
-			filtered = true
+			matchesServiceFilter = false
 			break
 		}
 	}
 
-	if !filtered {
+	matchesUserAgentFilter := false
+	for _, ua := range s.userAgentFilter {
+		if strings.Contains(strings.ToLower(r.strVersion), strings.ToLower(ua)) {
+			matchesUserAgentFilter = true
+			break
+		}
+	}
+
+	if matchesServiceFilter && matchesUserAgentFilter {
 		nd.status = statusCG
 	} else {
 		// We can set nodes that don't meet the filters to was good. This will ensure they stick around for a little
