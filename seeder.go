@@ -24,10 +24,10 @@ const (
 	minPort = 0
 	maxPort = 65535
 
-	crawlDelay = 22 // seconds between start crawlwer ticks
-	auditDelay = 22 // minutes between audit channel ticks
-	dnsDelay   = 57 // seconds between updates to active dns record list
-	cacheDumpDelay = 1 // minutes between writing cache to disk
+	crawlDelay     = 22 // seconds between start crawlwer ticks
+	auditDelay     = 22 // minutes between audit channel ticks
+	dnsDelay       = 57 // seconds between updates to active dns record list
+	cacheDumpDelay = 10 // minutes between writing cache to disk
 
 	maxFails = 58 // max number of connect fails before we delete a node. Just over 24 hours(checked every 33 minutes)
 
@@ -392,25 +392,25 @@ func (s *dnsseeder) addNa(nNa *wire.NetAddress) bool {
 		LastConnect: time.Now(),
 		Version:     0,
 		Status:      statusRG,
-		DnsType:     dnsV4Std,
+		DNSType:     dnsV4Std,
 	}
 
 	// select the dns type based on the remote address type and port
 	if x := nt.NA.IP.To4(); x == nil {
 		// not ipv4
 		if nNa.Port != s.port {
-			nt.DnsType = dnsV6Non
+			nt.DNSType = dnsV6Non
 
 			// produce the nonstdIP
 			nt.NonstdIP = getNonStdIP(nt.NA.IP, nt.NA.Port)
 
 		} else {
-			nt.DnsType = dnsV6Std
+			nt.DNSType = dnsV6Std
 		}
 	} else {
 		// ipv4
 		if nNa.Port != s.port {
-			nt.DnsType = dnsV4Non
+			nt.DNSType = dnsV4Non
 
 			// force ipv4 address into a 4 byte buffer
 			nt.NA.IP = nt.NA.IP.To4()

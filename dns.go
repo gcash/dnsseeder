@@ -32,7 +32,7 @@ func updateDNS(s *dnsseeder) {
 			}
 
 			if t == dnsV4Std || t == dnsV4Non {
-				if t == dnsV4Std && nd.DnsType == dnsV4Std {
+				if t == dnsV4Std && nd.DNSType == dnsV4Std {
 					r := &dns.A{
 						Hdr: dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
 						A:   nd.NA.IP,
@@ -42,7 +42,7 @@ func updateDNS(s *dnsseeder) {
 				}
 
 				// if the node is using a non standard port then add the encoded port info to DNS
-				if t == dnsV4Non && nd.DnsType == dnsV4Non {
+				if t == dnsV4Non && nd.DNSType == dnsV4Non {
 					r := &dns.A{
 						Hdr: dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
 						A:   nd.NA.IP,
@@ -58,7 +58,7 @@ func updateDNS(s *dnsseeder) {
 				}
 			}
 			if t == dnsV6Std || t == dnsV6Non {
-				if t == dnsV6Std && nd.DnsType == dnsV6Std {
+				if t == dnsV6Std && nd.DNSType == dnsV6Std {
 					r := &dns.AAAA{
 						Hdr:  dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
 						AAAA: nd.NA.IP,
@@ -67,7 +67,7 @@ func updateDNS(s *dnsseeder) {
 					numRR++
 				}
 				// if the node is using a non standard port then add the encoded port info to DNS
-				if t == dnsV6Non && nd.DnsType == dnsV6Non {
+				if t == dnsV6Non && nd.DNSType == dnsV6Non {
 					r := &dns.AAAA{
 						Hdr:  dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
 						AAAA: nd.NA.IP,

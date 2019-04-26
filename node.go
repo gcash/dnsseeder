@@ -22,13 +22,13 @@ type node struct {
 	LastBlock    int32            // remote client last block
 	Status       uint32           // rg,cg,wg,ng
 	Rating       uint32           // if it reaches 100 then we mark them statusNG
-	DnsType      uint32           // what dns type this client is
+	DNSType      uint32           // what dns type this client is
 	CrawlActive  bool             // are we currently crawling this client
 }
 
 // dns2str will return the string description of the dns type
 func (nd node) dns2str() string {
-	switch nd.DnsType {
+	switch nd.DNSType {
 	case dnsV4Std:
 		return "v4 standard port"
 	case dnsV4Non:

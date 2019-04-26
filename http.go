@@ -317,7 +317,7 @@ type webtemplate struct {
 	Port           uint16
 	Statusstr      string
 	Rating         string
-	Dnstype        string
+	DNStype        string
 	Lastconnect    string
 	Lastconnectago string
 	Lasttry        string
@@ -346,7 +346,7 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
       </tr>
       <tr><td>IP Address</td><td>{{.IP}}</td></tr>
       <tr><td>Port</td><td>{{.Port}}</td></tr>
-      <tr><td>DNS Type</td><td>{{.Dnstype}}</td></tr>
+      <tr><td>DNS Type</td><td>{{.DNStype}}</td></tr>
       <tr><td>Non Standard IP</td><td>{{.Nonstdip}}</td></tr>
       <tr><td>Last Connect</td><td>{{.Lastconnect}}<br>{{.Lastconnectago}} ago</td></tr>
       <tr><td>Last Connect Status</td><td>{{.Statusstr}}</td></tr>
@@ -384,7 +384,7 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 		wt := webtemplate{
 			IP:             nd.NA.IP.String(),
 			Port:           nd.NA.Port,
-			Dnstype:        nd.dns2str(),
+			DNStype:        nd.dns2str(),
 			Nonstdip:       nd.NonstdIP.String(),
 			Statusstr:      nd.StatusStr,
 			Lastconnect:    nd.LastConnect.String(),
