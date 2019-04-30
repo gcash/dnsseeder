@@ -300,6 +300,13 @@ func (s *dnsseeder) processResult(r *result) {
 	}
 
 	matchesUserAgentFilter := false
+
+	// If there are no UserAgentFilter's then it's actually a match since
+	// we aren't filtering.
+	if len(s.userAgentFilter) == 0 {
+		matchesUserAgentFilter = true
+	}
+
 	for _, ua := range s.userAgentFilter {
 		if strings.Contains(strings.ToLower(r.strVersion), strings.ToLower(ua)) {
 			matchesUserAgentFilter = true
