@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/gcash/bchutil"
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,10 +40,15 @@ type configData struct {
 	verbose    bool                  // verbose output cmdline option
 	debug      bool                  // debug cmdline option
 	stats      bool                  // stats cmdline option
+	dataDir    string                // app data directory
 }
 
-var config configData
-var netfile string
+var (
+	config         configData
+	netfile        string
+	dataDir        string
+	defaultDataDir = bchutil.AppDataDir("dnsseeder", false)
+)
 
 func main() {
 
@@ -51,6 +58,7 @@ func main() {
 	config.uptime = time.Now()
 
 	flag.StringVar(&netfile, "netfile", "", "List of json config files to load")
+	flag.StringVar(&dataDir, "datadir", "", "Data directory to store the address cache")
 	flag.StringVar(&config.port, "p", "8053", "DNS Port to listen on")
 	flag.StringVar(&config.http, "w", "", "Web Port to listen on. No port specified & no web server running")
 	flag.BoolVar(&j, "j", false, "Write network template file (dnsseeder.json) and exit")
@@ -75,6 +83,16 @@ func main() {
 	config.seeders = make(map[string]*dnsseeder)
 	config.dns = make(map[string][]dns.RR)
 	config.order = []string{}
+	if dataDir == "" {
+		dataDir = defaultDataDir
+	}
+	config.dataDir = cleanAndExpandPath(dataDir)
+	if !fileExists(config.dataDir) {
+		if err := os.MkdirAll(config.dataDir, os.ModePerm); err != nil {
+			fmt.Printf("Error creating data directory %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	for _, nwFile := range netwFiles {
 		nnw, err := loadNetwork(nwFile)
@@ -212,4 +230,28 @@ func updateDNSCounts(name, qtype string) {
 	if !counted {
 		atomic.AddUint64(&config.dnsUnknown, 1)
 	}
+}
+
+// cleanAndExpandPath expands environment variables and leading ~ in the
+// passed path, cleans the result, and returns it.
+func cleanAndExpandPath(path string) string {
+	// Expand initial ~ to OS specific home directory.
+	if strings.HasPrefix(path, "~") {
+		homeDir := filepath.Dir(defaultDataDir)
+		path = strings.Replace(path, "~", homeDir, 1)
+	}
+
+	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
+	// but they variables can still be expanded via POSIX-style $VARIABLE.
+	return filepath.Clean(os.ExpandEnv(path))
+}
+
+// filesExists reports whether the named file or directory exists.
+func fileExists(name string) bool {
+	if _, err := os.Stat(name); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }

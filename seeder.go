@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,9 +24,10 @@ const (
 	minPort = 0
 	maxPort = 65535
 
-	crawlDelay = 22 // seconds between start crawlwer ticks
-	auditDelay = 22 // minutes between audit channel ticks
-	dnsDelay   = 57 // seconds between updates to active dns record list
+	crawlDelay     = 22 // seconds between start crawlwer ticks
+	auditDelay     = 22 // minutes between audit channel ticks
+	dnsDelay       = 57 // seconds between updates to active dns record list
+	cacheDumpDelay = 10 // minutes between writing cache to disk
 
 	maxFails = 58 // max number of connect fails before we delete a node. Just over 24 hours(checked every 33 minutes)
 
@@ -143,6 +148,7 @@ func (s *dnsseeder) runSeeder(done <-chan struct{}, wg *sync.WaitGroup) {
 	auditChan := time.NewTicker(time.Minute * auditDelay).C
 	crawlChan := time.NewTicker(time.Second * crawlDelay).C
 	dnsChan := time.NewTicker(time.Second * dnsDelay).C
+	cacheChan := time.NewTicker(time.Minute * cacheDumpDelay).C
 
 	dowhile := true
 	for dowhile {
@@ -159,6 +165,9 @@ func (s *dnsseeder) runSeeder(done <-chan struct{}, wg *sync.WaitGroup) {
 		case <-crawlChan:
 			// start a scan to crawl nodes
 			s.startCrawlers(resultsChan)
+		case <-cacheChan:
+			// save the list to disk
+			s.dumpCache()
 		case <-done:
 			// done channel closed so exit the select and shutdown the seeder
 			dowhile = false
@@ -190,28 +199,28 @@ func (s *dnsseeder) startCrawlers(resultsChan chan *result) {
 	// so this is a random'ish selection
 	for _, nd := range s.theList {
 
-		totals[nd.status]++
+		totals[nd.Status]++
 
-		if nd.crawlActive {
+		if nd.CrawlActive {
 			continue
 		}
 
 		// do we already have enough started at this status
-		if started[nd.status] >= s.maxStart[nd.status] {
+		if started[nd.Status] >= s.maxStart[nd.Status] {
 			continue
 		}
 
 		// don't crawl a node to quickly
-		if (time.Now().Unix() - s.delay[nd.status]) <= nd.lastTry.Unix() {
+		if (time.Now().Unix() - s.delay[nd.Status]) <= nd.LastTry.Unix() {
 			continue
 		}
 
 		// all looks good so start a go routine to crawl the remote node
-		nd.crawlActive = true
-		nd.crawlStart = time.Now()
+		nd.CrawlActive = true
+		nd.CrawlStart = time.Now()
 
 		go crawlNode(resultsChan, s, nd)
-		started[nd.status]++
+		started[nd.Status]++
 	}
 
 	// update the global stats in another goroutine to free the main goroutine
@@ -242,28 +251,28 @@ func (s *dnsseeder) processResult(r *result) {
 	// msg is a crawlerror or nil
 	if r.msg != nil {
 		// update the fact that we have not connected to this node
-		nd.lastTry = time.Now()
-		nd.connectFails++
-		nd.statusStr = r.msg.Error()
+		nd.LastTry = time.Now()
+		nd.ConnectFails++
+		nd.StatusStr = r.msg.Error()
 
 		// update the status of this failed node
-		switch nd.status {
+		switch nd.Status {
 		case statusRG:
 			// if we are full then any RG failures will skip directly to NG
 			if len(s.theList) > s.maxSize {
-				nd.status = statusNG // not able to connect to this node so ignore
+				nd.Status = statusNG // not able to connect to this node so ignore
 			} else {
-				if nd.rating += 25; nd.rating > 30 {
-					nd.status = statusWG
+				if nd.Rating += 25; nd.Rating > 30 {
+					nd.Status = statusWG
 				}
 			}
 		case statusCG:
-			if nd.rating += 25; nd.rating >= 50 {
-				nd.status = statusWG
+			if nd.Rating += 25; nd.Rating >= 50 {
+				nd.Status = statusWG
 			}
 		case statusWG:
-			if nd.rating += 15; nd.rating >= 100 {
-				nd.status = statusNG // not able to connect to this node so ignore
+			if nd.Rating += 15; nd.Rating >= 100 {
+				nd.Status = statusNG // not able to connect to this node so ignore
 			}
 		}
 		// no more to do so return which will shutdown the goroutine & call
@@ -271,49 +280,51 @@ func (s *dnsseeder) processResult(r *result) {
 		if config.verbose {
 			log.Printf("%s: failed crawl node: %s s:r:f: %v:%v:%v %s\n",
 				s.name,
-				net.JoinHostPort(nd.na.IP.String(),
-					strconv.Itoa(int(nd.na.Port))),
-				nd.status,
-				nd.rating,
-				nd.connectFails,
-				nd.statusStr)
+				net.JoinHostPort(nd.NA.IP.String(),
+					strconv.Itoa(int(nd.NA.Port))),
+				nd.Status,
+				nd.Rating,
+				nd.ConnectFails,
+				nd.StatusStr)
 		}
 		return
 	}
 
 	// successful connection and addresses received so check filters then mark status
-	filtered := false
+	matchesServiceFilter := true
 	for _, service := range s.serviceFilter {
 		if !HasService(r.services, service) {
-			filtered = true
-			break
-		}
-	}
-	for _, ua := range s.userAgentFilter {
-		if !strings.Contains(strings.ToLower(r.strVersion), strings.ToLower(ua)) {
-			filtered = true
+			matchesServiceFilter = false
 			break
 		}
 	}
 
-	if !filtered {
-		nd.status = statusCG
+	matchesUserAgentFilter := false
+	for _, ua := range s.userAgentFilter {
+		if strings.Contains(strings.ToLower(r.strVersion), strings.ToLower(ua)) {
+			matchesUserAgentFilter = true
+			break
+		}
+	}
+
+	if matchesServiceFilter && matchesUserAgentFilter {
+		nd.Status = statusCG
 	} else {
 		// We can set nodes that don't meet the filters to was good. This will ensure they stick around for a little
 		// while so we can ask them for more addresses. Eventually they will be purged.
-		nd.status = statusWG
+		nd.Status = statusWG
 	}
-	cs := nd.lastConnect
-	nd.rating = 0
-	nd.connectFails = 0
-	nd.lastConnect = time.Now()
-	nd.lastTry = nd.lastConnect
-	nd.statusStr = "ok: received remote address list"
+	cs := nd.LastConnect
+	nd.Rating = 0
+	nd.ConnectFails = 0
+	nd.LastConnect = time.Now()
+	nd.LastTry = nd.LastConnect
+	nd.StatusStr = "ok: received remote address list"
 	// update the node from the results
-	nd.version = r.version
-	nd.services = r.services
-	nd.lastBlock = r.lastBlock
-	nd.strVersion = r.strVersion
+	nd.Version = r.version
+	nd.Services = r.services
+	nd.LastBlock = r.lastBlock
+	nd.StrVersion = r.strVersion
 
 	added := 0
 
@@ -336,21 +347,21 @@ func (s *dnsseeder) processResult(r *result) {
 	if config.verbose {
 		log.Printf("%s: crawl done: node: %s s:r:f: %v:%v:%v addr: %v:%v CrawlTime: %s Last connect: %v ago\n",
 			s.name,
-			net.JoinHostPort(nd.na.IP.String(),
-				strconv.Itoa(int(nd.na.Port))),
-			nd.status,
-			nd.rating,
-			nd.connectFails,
+			net.JoinHostPort(nd.NA.IP.String(),
+				strconv.Itoa(int(nd.NA.Port))),
+			nd.Status,
+			nd.Rating,
+			nd.ConnectFails,
 			len(r.nas),
 			added,
-			time.Since(nd.crawlStart).String(),
+			time.Since(nd.CrawlStart).String(),
 			time.Since(cs).String())
 	}
 }
 
 // crawlEnd is run as a defer to make sure node status is correctly updated
 func crawlEnd(nd *node) {
-	nd.crawlActive = false
+	nd.CrawlActive = false
 }
 
 // addNa validates and adds a network address to theList
@@ -377,35 +388,35 @@ func (s *dnsseeder) addNa(nNa *wire.NetAddress) bool {
 	}
 
 	nt := node{
-		na:          nNa,
-		lastConnect: time.Now(),
-		version:     0,
-		status:      statusRG,
-		dnsType:     dnsV4Std,
+		NA:          nNa,
+		LastConnect: time.Now(),
+		Version:     0,
+		Status:      statusRG,
+		DNSType:     dnsV4Std,
 	}
 
 	// select the dns type based on the remote address type and port
-	if x := nt.na.IP.To4(); x == nil {
+	if x := nt.NA.IP.To4(); x == nil {
 		// not ipv4
 		if nNa.Port != s.port {
-			nt.dnsType = dnsV6Non
+			nt.DNSType = dnsV6Non
 
 			// produce the nonstdIP
-			nt.nonstdIP = getNonStdIP(nt.na.IP, nt.na.Port)
+			nt.NonstdIP = getNonStdIP(nt.NA.IP, nt.NA.Port)
 
 		} else {
-			nt.dnsType = dnsV6Std
+			nt.DNSType = dnsV6Std
 		}
 	} else {
 		// ipv4
 		if nNa.Port != s.port {
-			nt.dnsType = dnsV4Non
+			nt.DNSType = dnsV4Non
 
 			// force ipv4 address into a 4 byte buffer
-			nt.na.IP = nt.na.IP.To4()
+			nt.NA.IP = nt.NA.IP.To4()
 
 			// produce the nonstdIP
-			nt.nonstdIP = getNonStdIP(nt.na.IP, nt.na.Port)
+			nt.NonstdIP = getNonStdIP(nt.NA.IP, nt.NA.Port)
 		}
 	}
 
@@ -413,6 +424,19 @@ func (s *dnsseeder) addNa(nNa *wire.NetAddress) bool {
 	s.theList[k] = &nt
 
 	return true
+}
+
+func (s *dnsseeder) dumpCache() {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	cachePath := path.Join(config.dataDir, fmt.Sprintf("%s.json", s.name))
+	out, err := json.MarshalIndent(s.theList, "", "    ")
+	if err != nil {
+		log.Printf("error marshalling cache: %s\n", err)
+	}
+	if err := ioutil.WriteFile(cachePath, out, os.ModePerm); err != nil {
+		log.Printf("error writing cache: %s\n", err)
+	}
 }
 
 // getNonStdIP is given an IP address and a port and returns a fake IP address
@@ -468,22 +492,22 @@ func (s *dnsseeder) auditNodes() {
 
 	for k, nd := range s.theList {
 
-		if nd.crawlActive {
-			if time.Now().Unix()-nd.crawlStart.Unix() >= 300 {
+		if nd.CrawlActive {
+			if time.Now().Unix()-nd.CrawlStart.Unix() >= 300 {
 				log.Printf("warning - long running crawl > 5 minutes ====\n- %s status:rating:fails %v:%v:%v crawl start: %s last status: %s\n====\n",
 					k,
-					nd.status,
-					nd.rating,
-					nd.connectFails,
-					nd.crawlStart.String(),
-					nd.statusStr)
+					nd.Status,
+					nd.Rating,
+					nd.ConnectFails,
+					nd.CrawlStart.String(),
+					nd.StatusStr)
 			}
 		}
 
 		// Audit task is to remove node that we have not been able to connect to
-		if nd.status == statusNG && nd.connectFails > maxFails {
+		if nd.Status == statusNG && nd.ConnectFails > maxFails {
 			if config.verbose {
-				log.Printf("%s: purging node %s after %v failed connections\n", s.name, k, nd.connectFails)
+				log.Printf("%s: purging node %s after %v failed connections\n", s.name, k, nd.ConnectFails)
 			}
 
 			c++
@@ -494,7 +518,7 @@ func (s *dnsseeder) auditNodes() {
 		}
 
 		// If seeder is full then remove old NG clients and fill up with possible new CG clients
-		if nd.status == statusNG && iAmFull {
+		if nd.Status == statusNG && iAmFull {
 			if config.verbose {
 				log.Printf("%s: seeder full purging node %s\n", s.name, k)
 			}
@@ -507,7 +531,7 @@ func (s *dnsseeder) auditNodes() {
 		}
 
 		// check if we need to purge statusCG to freshen the list
-		if nd.status == statusCG {
+		if nd.Status == statusCG {
 			if cgCount++; cgCount > cgGoal {
 				// we have enough statusCG clients so purge remaining to cycle through the list
 				if config.verbose {

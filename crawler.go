@@ -27,7 +27,7 @@ func (e *crawlError) Error() string {
 func crawlNode(rc chan *result, s *dnsseeder, nd *node) {
 
 	res := &result{
-		node: net.JoinHostPort(nd.na.IP.String(), strconv.Itoa(int(nd.na.Port))),
+		node: net.JoinHostPort(nd.NA.IP.String(), strconv.Itoa(int(nd.NA.Port))),
 	}
 
 	// connect to the remote ip and ask them for their addr list
@@ -45,8 +45,8 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	verack := make(chan struct{})
 	onAddr := make(chan *wire.MsgAddr)
 	peerCfg := &peer.Config{
-		UserAgentName:    "bitcoin-seeder", // User agent name to advertise.
-		UserAgentVersion: "1.0.0",          // User agent version to advertise.
+		UserAgentName:    "dnsseeder", // User agent name to advertise.
+		UserAgentVersion: "1.0.0",     // User agent version to advertise.
 		ChainParams:      &chaincfg.MainNetParams,
 		Services:         0,
 		Listeners: peer.MessageListeners{
