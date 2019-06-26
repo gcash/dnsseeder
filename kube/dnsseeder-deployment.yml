@@ -17,8 +17,11 @@ spec:
       containers:
       - image: zquestz/dnsseeder:latest
         command: ["dnsseeder"]
-        args: ["-s", "-d", "-netfile=mainnet-all.json,mainnet-filtered.json,mainnet-node-cf.json"]
+        args: ["-s", "-datadir", "/data", "-netfile", "mainnet-all.json,mainnet-filtered.json,mainnet-node-cf.json"]
         name: dnsseeder
+        volumeMounts:
+          - mountPath: /data
+            name: dnsseeder-data
         resources:
           requests:
             memory: "3Gi"
@@ -26,3 +29,8 @@ spec:
         - containerPort: 8053
           protocol: UDP
       restartPolicy: Always
+      volumes:
+        - name: dnsseeder-data
+          gcePersistentDisk:
+            pdName: dnsseeder-data
+            fsType: ext4
