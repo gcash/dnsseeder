@@ -6,14 +6,8 @@ LABEL maintainer="Josh Ellithorpe <quest@mac.com>"
 
 WORKDIR /go/src/github.com/gcash/dnsseeder
 
-# Install dep
-RUN go get -u github.com/golang/dep/cmd/dep
-
 # Copy the local package files to the container's workspace.
 COPY . .
-
-# Restore vendored packages.
-RUN dep ensure
 
 # Build static binary
 RUN CGO_ENABLED=0 go build --ldflags '-extldflags "-static"' -o /bin/dnsseeder .
