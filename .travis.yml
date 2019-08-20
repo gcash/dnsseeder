@@ -8,8 +8,7 @@ env:
   - GO111MODULE=on
 
 before_install:
-  - go get gopkg.in/alecthomas/gometalinter.v2
-  - gometalinter.v2 --install
+  - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
 install:
   - go install .
