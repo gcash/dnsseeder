@@ -24,7 +24,6 @@ Originally forked from https://github.com/gombadi/dnsseederd
 Simply use go get to download the code:
 
     $ go get github.com/gcash/dnsseeder
-    $ dep ensure
 
 ## Usage
 
