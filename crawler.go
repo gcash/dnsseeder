@@ -90,10 +90,12 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 
 	// if we get this far and if the seeder is full then don't ask for addresses. This will reduce bandwidth usage while still
 	// confirming that we can connect to the remote node
+	s.mtx.RLock()
 	if len(s.theList) > s.maxSize {
 		return nil, nil
 	}
-
+	s.mtx.RUnlock()
+	
 	// send getaddr command
 	p.QueueMessage(wire.NewMsgGetAddr(), nil)
 
