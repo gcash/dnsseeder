@@ -95,7 +95,7 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 		return nil, nil
 	}
 	s.mtx.RUnlock()
-	
+
 	// send getaddr command
 	p.QueueMessage(wire.NewMsgGetAddr(), nil)
 
