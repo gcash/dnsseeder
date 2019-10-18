@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"errors"
+
 	"github.com/gcash/bchd/chaincfg"
 	"github.com/gcash/bchd/peer"
 	"github.com/gcash/bchd/wire"
@@ -80,6 +81,8 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 		return nil, &crawlError{"net.Dial: error", err}
 	}
 	p.AssociateConnection(conn)
+	defer p.WaitForDisconnect()
+	defer p.Disconnect()
 
 	// Wait for the verack message or timeout in case of failure.
 	select {
@@ -104,10 +107,6 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	case addrMsg = <-onAddr:
 	case <-time.After(time.Second * 6):
 	}
-
-	// Disconnect the peer.
-	p.Disconnect()
-	p.WaitForDisconnect()
 
 	return addrMsg.AddrList, nil
 }
