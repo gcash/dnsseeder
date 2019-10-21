@@ -394,8 +394,10 @@ func (s *dnsseeder) addNa(nNa *wire.NetAddress) bool {
 		return false
 	}
 
+	na := *nNa
+
 	nt := node{
-		NA:          nNa,
+		NA:          &na,
 		LastConnect: time.Now(),
 		Version:     0,
 		Status:      statusRG,
@@ -553,10 +555,8 @@ func (s *dnsseeder) auditNodes() {
 			}
 		}
 	}
-	if config.verbose {
-		log.Printf("%s: Audit complete. %v nodes purged\n", s.name, c)
-	}
 
+	log.Printf("%s: Audit complete. %v nodes purged. %v total nodes\n", s.name, c, len(s.theList))
 }
 
 // loadDNS loads the dns records with time based test data
