@@ -17,7 +17,7 @@ spec:
       containers:
       - image: zquestz/dnsseeder:latest
         command: ["dnsseeder"]
-        args: ["-s", "-datadir", "/data", "-netfile", "mainnet-all.json,mainnet-filtered.json,mainnet-node-cf.json"]
+        args: ["-s", "-datadir", "/data", "-netfile", "mainnet-all.json,mainnet-filtered.json,mainnet-node-cf.json,testnet-all.json,testnet-filtered.json,testnet-node-cf.json"]
         name: dnsseeder
         volumeMounts:
           - mountPath: /data
