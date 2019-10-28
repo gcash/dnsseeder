@@ -1,0 +1,19 @@
+{
+  "Name": "Testnet3 Node CF",
+  "Desc": "Bitcoin Cash Testnet3 - NodeCF",
+  "Id": "0xfabfb5da",
+  "Port": 18333,
+  "Pver": 70001,
+  "DNSName": "x101.testnet-seed.bchd.cash",
+  "TTL": 600,
+  "Seeder1": "testnet-seed.bitcoinabc.org",
+  "Seeder2": "testnet-seed-abc.bitcoinforks.org",
+  "Seeder3": "testnet-seed.bitprim.org",
+  "ServiceFilter": [
+    "NodeNetwork",
+    "NodeCF"
+  ],
+  "UserAgentFilter": [
+    "bchd:0.15.0"
+  ]
+}
