@@ -48,7 +48,6 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	peerCfg := &peer.Config{
 		UserAgentName:    "dnsseeder", // User agent name to advertise.
 		UserAgentVersion: "1.0.0",     // User agent version to advertise.
-		ChainParams:      &chaincfg.MainNetParams,
 		Services:         0,
 		Listeners: peer.MessageListeners{
 			OnAddr: func(p *peer.Peer, msg *wire.MsgAddr) {
@@ -69,6 +68,12 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 				verack <- struct{}{}
 			},
 		},
+	}
+	// Assume testnet 3 if we are using a testnet port!
+	if s.port == 18333 {
+		peerCfg.ChainParams = &chaincfg.TestNet3Params
+	} else {
+		peerCfg.ChainParams = &chaincfg.MainNetParams
 	}
 	p, err := peer.NewOutboundPeer(peerCfg, r.node)
 	if err != nil {
