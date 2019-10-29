@@ -1,15 +1,17 @@
 {
-  "Name": "Testnet3",
-  "Desc": "Bitcoin Cash Testnet3",
+  "Name": "Testnet3 Filtered",
+  "Desc": "Bitcoin Cash Testnet3 - Filtered",
   "Id": "0xf4f3e5f4",
   "Port": 18333,
   "Pver": 70001,
-  "DNSName": "seeder.example.com",
-  "TTL": 300,
+  "DNSName": "x105.testnet-seed.bchd.cash",
+  "TTL": 600,
   "Seeder1": "testnet-seed.bitcoinabc.org",
   "Seeder2": "testnet-seed-abc.bitcoinforks.org",
   "Seeder3": "testnet-seed.bitprim.org",
   "ServiceFilter": [
-    "NodeNetwork"
+    "NodeNetwork",
+    "NodeCF",
+    "NodeBloom"
   ]
 }
