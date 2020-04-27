@@ -3,12 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gcash/bchd/wire"
 	"log"
 	"os"
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/gcash/bchd/wire"
 )
 
 // JNetwork is the exported struct that is read from the network file
@@ -84,7 +85,6 @@ func loadNetwork(fName string) (*dnsseeder, error) {
 }
 
 func initNetwork(jnw JNetwork) (*dnsseeder, error) {
-
 	if jnw.Port == 0 {
 		return nil, fmt.Errorf("Invalid port supplied: %v", jnw.Port)
 
@@ -115,11 +115,19 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 
 	seeder.initialIPs = jnw.InitialIPs
 
-	// load the seeder dns
-	seeder.seeders = make([]string, 3)
-	seeder.seeders[0] = jnw.Seeder1
-	seeder.seeders[1] = jnw.Seeder2
-	seeder.seeders[2] = jnw.Seeder3
+	// Load up the seeders. Due to an odd config format
+	// that accepts a different key per seeder, we need to
+	// do some empty value checks...
+	seeder.seeders = []string{}
+	if jnw.Seeder1 != "" {
+		seeder.seeders = append(seeder.seeders, jnw.Seeder1)
+	}
+	if jnw.Seeder2 != "" {
+		seeder.seeders = append(seeder.seeders, jnw.Seeder2)
+	}
+	if jnw.Seeder3 != "" {
+		seeder.seeders = append(seeder.seeders, jnw.Seeder3)
+	}
 
 	// Parse service flags
 	var services []wire.ServiceFlag
