@@ -7,6 +7,5 @@
   "DNSName": "seed.bchd.cash",
   "TTL": 600,
   "Seeder1": "seed.bitcoinabc.org",
-  "Seeder2": "seed-abc.bitcoinforks.org",
-  "Seeder3": "btccash-seeder.bitcoinunlimited.info"
+  "Seeder2": "btccash-seeder.bitcoinunlimited.info"
 }

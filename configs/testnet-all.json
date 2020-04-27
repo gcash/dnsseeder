@@ -6,7 +6,5 @@
   "Pver": 70001,
   "DNSName": "testnet-seed.bchd.cash",
   "TTL": 600,
-  "Seeder1": "testnet-seed.bitcoinabc.org",
-  "Seeder2": "testnet-seed-abc.bitcoinforks.org",
-  "Seeder3": "testnet-seed.bitprim.org"
+  "Seeder1": "testnet-seed.bitcoinabc.org"
 }

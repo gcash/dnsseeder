@@ -7,9 +7,10 @@
   "DNSName": "seeder.example.com",
   "TTL": 600,
   "Seeder1": "seed.bitcoinabc.org",
-  "Seeder2": "seed-abc.bitcoinforks.org",
-  "Seeder3": "btccash-seeder.bitcoinunlimited.info",
-  "InitialIPs": ["127.0.0.1"],
+  "Seeder2": "btccash-seeder.bitcoinunlimited.info",
+  "InitialIPs": [
+    "127.0.0.1"
+  ],
   "ServiceFilter": [
     "NodeNetwork",
     "NodeCF",
