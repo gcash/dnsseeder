@@ -7,6 +7,7 @@
   "DNSName": "seeder.example.com",
   "TTL": 300,
   "Seeder1": "testnet-seed.bitcoinabc.org",
+  "Seeder2": "testnet-seed-bch.bitcoinforks.org",
   "ServiceFilter": [
     "NodeNetwork"
   ]

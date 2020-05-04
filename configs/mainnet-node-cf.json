@@ -8,6 +8,7 @@
   "TTL": 600,
   "Seeder1": "seed.bitcoinabc.org",
   "Seeder2": "btccash-seeder.bitcoinunlimited.info",
+  "Seeder3": "seed-bch.bitcoinforks.org",
   "ServiceFilter": [
     "NodeNetwork",
     "NodeCF"
