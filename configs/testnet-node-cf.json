@@ -13,6 +13,7 @@
     "NodeCF"
   ],
   "UserAgentFilter": [
-    "bchd:0.16.1"
+    "bchd:0.16.1",
+    "bchd:0.16.2"
   ]
 }
