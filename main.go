@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/gcash/bchutil"
 	"log"
 	"os"
 	"os/signal"
@@ -13,6 +12,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/gcash/bchutil"
 
 	"github.com/miekg/dns"
 )
@@ -54,7 +55,7 @@ func main() {
 
 	var j bool
 
-	config.version = "0.9.1"
+	config.version = "0.9.2"
 	config.uptime = time.Now()
 
 	flag.StringVar(&netfile, "netfile", "", "List of json config files to load")
