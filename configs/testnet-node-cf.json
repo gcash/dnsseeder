@@ -15,6 +15,7 @@
   "UserAgentFilter": [
     "bchd:0.16.1",
     "bchd:0.16.2",
-    "bchd:0.16.3"
+    "bchd:0.16.3",
+    "bchd:0.16.4"
   ]
 }
