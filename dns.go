@@ -2,10 +2,11 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/gcash/bchd/wire"
+
 	"github.com/miekg/dns"
-	"time"
 )
 
 // updateDNS updates the current slices of dns.RR so incoming requests get a

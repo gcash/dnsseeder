@@ -1,12 +1,11 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net"
 	"strconv"
 	"time"
-
-	"errors"
 
 	"github.com/gcash/bchd/chaincfg"
 	"github.com/gcash/bchd/peer"

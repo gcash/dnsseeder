@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/gcash/bchd/wire"
 	"net"
 	"strconv"
 	"testing"
+
+	"github.com/gcash/bchd/wire"
 )
 
 func TestGetNonStdIP(t *testing.T) {
