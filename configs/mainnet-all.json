@@ -6,7 +6,7 @@
   "Pver": 70001,
   "DNSName": "seed.bchd.cash",
   "TTL": 600,
-  "Seeder1": "seed.bitcoinabc.org",
-  "Seeder2": "btccash-seeder.bitcoinunlimited.info",
-  "Seeder3": "seed-bch.bitcoinforks.org"
+  "Seeder1": "btccash-seeder.bitcoinunlimited.info",
+  "Seeder2": "seed.bch.loping.net",
+  "Seeder3": "dnsseed.electroncash.de"
 }
