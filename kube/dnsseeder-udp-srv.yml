@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: dnsseeder-udp
   namespace: default
+  annotations:
+    cloud.google.com/network-tier: Standard
 spec:
   ports:
     - protocol: UDP
