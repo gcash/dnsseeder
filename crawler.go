@@ -46,7 +46,7 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	onAddr := make(chan *wire.MsgAddr)
 	peerCfg := &peer.Config{
 		UserAgentName:    "dnsseeder", // User agent name to advertise.
-		UserAgentVersion: "1.0.0",     // User agent version to advertise.
+		UserAgentVersion: "1.0.1",     // User agent version to advertise.
 		Services:         0,
 		Listeners: peer.MessageListeners{
 			OnAddr: func(p *peer.Peer, msg *wire.MsgAddr) {
