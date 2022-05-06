@@ -14,4 +14,4 @@ spec:
     service: dnsseeder
   type: LoadBalancer
   externalTrafficPolicy: Local
-  #loadBalancerIP: x.x.x.x
+  loadBalancerIP: 35.208.20.176
