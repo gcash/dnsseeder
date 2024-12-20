@@ -18,19 +18,26 @@ spec:
         service: dnsseeder
     spec:
       containers:
-      - image: zquestz/dnsseeder:latest
-        command: ["dnsseeder"]
-        args: ["-s", "-datadir", "/data", "-netfile", "mainnet-all.json,mainnet-filtered.json,mainnet-node-cf.json,testnet-all.json,testnet-filtered.json,testnet-node-cf.json"]
-        name: dnsseeder
-        volumeMounts:
-          - mountPath: /data
-            name: dnsseeder-data
-        resources:
-          requests:
-            memory: "1Gi"
-        ports:
-        - containerPort: 8053
-          protocol: UDP
+        - image: zquestz/dnsseeder:latest
+          command: ["dnsseeder"]
+          args:
+            [
+              "-s",
+              "-datadir",
+              "/data",
+              "-netfile",
+              "mainnet-all.json,mainnet-filtered.json,mainnet-node-cf.json,testnet-all.json,testnet-filtered.json,testnet-node-cf.json,testnet4-all.json,testnet4-filtered.json,testnet4-node-cf.json",
+            ]
+          name: dnsseeder
+          volumeMounts:
+            - mountPath: /data
+              name: dnsseeder-data
+          resources:
+            requests:
+              memory: "1Gi"
+          ports:
+            - containerPort: 8053
+              protocol: UDP
       restartPolicy: Always
       volumes:
         - name: dnsseeder-data
