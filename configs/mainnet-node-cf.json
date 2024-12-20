@@ -3,7 +3,7 @@
   "Desc": "Bitcoin Cash Mainnet - NodeCF",
   "Id": "0xe8f3e1e3",
   "Port": 8333,
-  "Pver": 70001,
+  "Pver": 70016,
   "DNSName": "x101.seed.bchd.cash",
   "TTL": 600,
   "Seeder1": "btccash-seeder.bitcoinunlimited.info",
@@ -14,6 +14,6 @@
     "NodeCF"
   ],
   "UserAgentFilter": [
-    "bchd:0.19.0"
+    "bchd:0.20.0"
   ]
 }

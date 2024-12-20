@@ -1,0 +1,15 @@
+{
+  "Name": "Testnet4",
+  "Desc": "Bitcoin Cash Testnet4",
+  "Id": "0xafdab7e2",
+  "Port": 18333,
+  "Pver": 70016,
+  "DNSName": "seeder.example.com",
+  "TTL": 300,
+  "Seeder1": "testnet4-seed-bch.toom.im",
+  "Seeder2": "seed.tbch4.loping.net",
+  "Seeder3": "testnet4-seed.flowee.cash",
+  "ServiceFilter": [
+    "NodeNetwork"
+  ]
+}

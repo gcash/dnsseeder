@@ -3,7 +3,7 @@
   "Desc": "Bitcoin Cash Mainnet",
   "Id": "0xe8f3e1e3",
   "Port": 8333,
-  "Pver": 70001,
+  "Pver": 70016,
   "DNSName": "seeder.example.com",
   "TTL": 600,
   "Seeder1": "btccash-seeder.bitcoinunlimited.info",

@@ -3,7 +3,7 @@
   "Desc": "Bitcoin Cash Testnet3 - Filtered",
   "Id": "0xf4f3e5f4",
   "Port": 18333,
-  "Pver": 70001,
+  "Pver": 70016,
   "DNSName": "x105.testnet-seed.bchd.cash",
   "TTL": 600,
   "Seeder1": "seed.tbch.loping.net",
