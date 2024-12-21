@@ -2,7 +2,7 @@
   "Name": "Testnet4 All",
   "Desc": "Bitcoin Cash Testnet4 - All",
   "Id": "0xafdab7e2",
-  "Port": 18333,
+  "Port": 28333,
   "Pver": 70016,
   "DNSName": "testnet4-seed.bchd.cash",
   "TTL": 600,

@@ -2,7 +2,7 @@
   "Name": "Testnet4",
   "Desc": "Bitcoin Cash Testnet4",
   "Id": "0xafdab7e2",
-  "Port": 18333,
+  "Port": 28333,
   "Pver": 70016,
   "DNSName": "seeder.example.com",
   "TTL": 300,
