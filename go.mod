@@ -3,7 +3,7 @@ module github.com/gcash/dnsseeder
 go 1.23.4
 
 require (
-	github.com/gcash/bchd v0.20.0-rc1.0.20241221034333-2f3d7431e3ff
+	github.com/gcash/bchd v0.20.0-rc1.0.20241221041158-80f6be1357dd
 	github.com/gcash/bchutil v0.0.0-20241220024231-3d67040d3361
 	github.com/miekg/dns v1.1.62
 )
