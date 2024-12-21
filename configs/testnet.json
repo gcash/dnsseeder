@@ -8,7 +8,5 @@
   "TTL": 300,
   "Seeder1": "seed.tbch.loping.net",
   "Seeder2": "testnet-seed-bch.bitcoinforks.org",
-  "ServiceFilter": [
-    "NodeNetwork"
-  ]
+  "ServiceFilter": ["NodeNetwork"]
 }

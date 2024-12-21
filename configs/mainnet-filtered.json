@@ -9,9 +9,5 @@
   "Seeder1": "btccash-seeder.bitcoinunlimited.info",
   "Seeder2": "seed.bch.loping.net",
   "Seeder3": "dnsseed.electroncash.de",
-  "ServiceFilter": [
-    "NodeNetwork",
-    "NodeCF",
-    "NodeBloom"
-  ]
+  "ServiceFilter": ["NodeNetwork", "NodeCF", "NodeBloom"]
 }

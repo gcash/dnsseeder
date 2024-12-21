@@ -9,7 +9,5 @@
   "Seeder1": "testnet4-seed-bch.toom.im",
   "Seeder2": "seed.tbch4.loping.net",
   "Seeder3": "testnet4-seed.flowee.cash",
-  "ServiceFilter": [
-    "NodeNetwork"
-  ]
+  "ServiceFilter": ["NodeNetwork"]
 }

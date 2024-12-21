@@ -8,11 +8,6 @@
   "TTL": 600,
   "Seeder1": "seed.tbch.loping.net",
   "Seeder2": "testnet-seed-bch.bitcoinforks.org",
-  "ServiceFilter": [
-    "NodeNetwork",
-    "NodeCF"
-  ],
-  "UserAgentFilter": [
-    "bchd:0.20.0"
-  ]
+  "ServiceFilter": ["NodeNetwork", "NodeCF"],
+  "UserAgentFilter": ["bchd:0.20.0"]
 }
