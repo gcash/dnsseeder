@@ -205,6 +205,8 @@ github.com/gcash/bchd v0.20.0-rc1.0.20241221034333-2f3d7431e3ff h1:Hzct07ChNsROl
 github.com/gcash/bchd v0.20.0-rc1.0.20241221034333-2f3d7431e3ff/go.mod h1:VtFPpy8kqnJ1MrGk/yXHWRs/vkc7/jw2NjJX3l7Vork=
 github.com/gcash/bchd v0.20.0-rc1.0.20241221041158-80f6be1357dd h1:B92oY9q8aa7v95uqKcb/Ow/giTDATqOJGVT5ejEtTvo=
 github.com/gcash/bchd v0.20.0-rc1.0.20241221041158-80f6be1357dd/go.mod h1:VtFPpy8kqnJ1MrGk/yXHWRs/vkc7/jw2NjJX3l7Vork=
+github.com/gcash/bchd v0.20.0-rc2 h1:k2wOAGeaKcQLzj7ixEMNDWMoVMjPn6l9uMks+Z6twBg=
+github.com/gcash/bchd v0.20.0-rc2/go.mod h1:VtFPpy8kqnJ1MrGk/yXHWRs/vkc7/jw2NjJX3l7Vork=
 github.com/gcash/bchlog v0.0.0-20180913005452-b4f036f92fa6 h1:3pZvWJ8MSfWstGrb8Hfh4ZpLyZNcXypcGx2Ju4ZibVM=
 github.com/gcash/bchlog v0.0.0-20180913005452-b4f036f92fa6/go.mod h1:PpfmXTLfjRp7Tf6v/DCGTRXHz+VFbiRcsoUxi7HvwlQ=
 github.com/gcash/bchutil v0.0.0-20190625002603-800e62fe9aff/go.mod h1:zXSP0Fg2L52wpSEDApQDQMiSygnQiK5HDquDl0a5BHg=

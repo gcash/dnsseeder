@@ -46,13 +46,13 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	onAddr := make(chan *wire.MsgAddr)
 	peerCfg := &peer.Config{
 		UserAgentName:    "dnsseeder", // User agent name to advertise.
-		UserAgentVersion: "1.1.0",     // User agent version to advertise.
+		UserAgentVersion: "1.2.0",     // User agent version to advertise.
 		Services:         0,
 		Listeners: peer.MessageListeners{
-			OnAddr: func(p *peer.Peer, msg *wire.MsgAddr) {
+			OnAddr: func(_ *peer.Peer, msg *wire.MsgAddr) {
 				onAddr <- msg
 			},
-			OnVersion: func(p *peer.Peer, msg *wire.MsgVersion) *wire.MsgReject {
+			OnVersion: func(_ *peer.Peer, msg *wire.MsgVersion) *wire.MsgReject {
 				if config.debug {
 					log.Printf("%s - debug - %s - Remote version: %v\n", s.name, r.node, msg.ProtocolVersion)
 				}
@@ -63,7 +63,7 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 				r.strVersion = msg.UserAgent
 				return nil
 			},
-			OnVerAck: func(p *peer.Peer, msg *wire.MsgVerAck) {
+			OnVerAck: func(_ *peer.Peer, _ *wire.MsgVerAck) {
 				verack <- struct{}{}
 			},
 		},

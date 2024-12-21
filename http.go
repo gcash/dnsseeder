@@ -122,7 +122,7 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 	writeHeader(w, r)
 	fmt.Fprintf(w, "<b>Currently serving the following DNS records</b>")
 	fmt.Fprintf(w, "<p><center><b>IPv4</b></center></p>")
-	fmt.Fprintf(w, t1)
+	fmt.Fprint(w, t1)
 
 	t := template.New("v4 template")
 	t, err := t.Parse(t2)
@@ -134,38 +134,38 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error executing template v4 %v\n", err)
 	}
 
-	fmt.Fprintf(w, t3)
+	fmt.Fprint(w, t3)
 
 	err = t.Execute(w, v4nonstr)
 	if err != nil {
 		log.Printf("error executing template v4 non %v\n", err)
 	}
 
-	fmt.Fprintf(w, t4)
+	fmt.Fprint(w, t4)
 
 	// ipv6 records
 
 	fmt.Fprintf(w, "<p><center><b>IPv6</b></center></p>")
-	fmt.Fprintf(w, t1)
+	fmt.Fprint(w, t1)
 
 	err = t.Execute(w, v6stdstr)
 	if err != nil {
 		log.Printf("error executing template v6 %v\n", err)
 	}
 
-	fmt.Fprintf(w, t3)
+	fmt.Fprint(w, t3)
 
 	err = t.Execute(w, v6nonstr)
 	if err != nil {
 		log.Printf("error executing template v6 non %v\n", err)
 	}
 
-	fmt.Fprintf(w, t4)
+	fmt.Fprint(w, t4)
 	writeFooter(w, r, st)
 }
 
 // emptyHandler processes all requests for non-existent urls
-func emptyHandler(w http.ResponseWriter, r *http.Request) {
+func emptyHandler(w http.ResponseWriter, _ *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 	fmt.Fprintf(w, "Nothing to see here. Move along please\n")
@@ -511,9 +511,9 @@ func writeHeader(w http.ResponseWriter, r *http.Request) {
     <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
     <html><head><title>dnsseeder</title></head><body>
 	<center>
-	<a href="/summary">Summary</a>   
+	<a href="/summary">Summary</a>
 `
-	fmt.Fprintf(w, h1)
+	fmt.Fprint(w, h1)
 
 	// read the seeder name
 	n := r.FormValue("s")
