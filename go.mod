@@ -3,8 +3,8 @@ module github.com/gcash/dnsseeder
 go 1.23.4
 
 require (
-	github.com/gcash/bchd v0.20.0-rc2
-	github.com/gcash/bchutil v0.0.0-20241220024231-3d67040d3361
+	github.com/gcash/bchd v0.20.0
+	github.com/gcash/bchutil v0.0.0-20250104023854-fc136854953c
 	github.com/miekg/dns v1.1.62
 )
 
@@ -40,17 +40,17 @@ require (
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/simpleledgerinc/goslp v0.0.0-20210423125905-3c2e5f2ef33f // indirect
 	github.com/zquestz/grab v0.0.0-20190224022517-abcee96e61b1 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/net v0.33.0 // indirect
+	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/tools v0.28.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20241219192143-6b3ec007d9bb // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20241219192143-6b3ec007d9bb // indirect
-	google.golang.org/grpc v1.69.2 // indirect
-	google.golang.org/protobuf v1.36.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250106144421-5f5ef82da422 // indirect
+	google.golang.org/grpc v1.69.4 // indirect
+	google.golang.org/protobuf v1.36.2 // indirect
 	lukechampine.com/uint128 v1.3.0 // indirect
 	nhooyr.io/websocket v1.8.17 // indirect
 )
