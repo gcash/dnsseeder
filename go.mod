@@ -4,8 +4,8 @@ go 1.23.4
 
 require (
 	github.com/gcash/bchd v0.20.0
-	github.com/gcash/bchutil v0.0.0-20250104023854-fc136854953c
-	github.com/miekg/dns v1.1.62
+	github.com/gcash/bchutil v0.0.0-20250115071209-216bd54f0d4d
+	github.com/miekg/dns v1.1.65
 )
 
 require (
@@ -40,13 +40,13 @@ require (
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/simpleledgerinc/goslp v0.0.0-20210423125905-3c2e5f2ef33f // indirect
 	github.com/zquestz/grab v0.0.0-20190224022517-abcee96e61b1 // indirect
-	golang.org/x/crypto v0.32.0 // indirect
-	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/net v0.34.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/tools v0.28.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/mod v0.24.0 // indirect
+	golang.org/x/net v0.40.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
+	golang.org/x/tools v0.33.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250106144421-5f5ef82da422 // indirect
 	google.golang.org/grpc v1.69.4 // indirect
