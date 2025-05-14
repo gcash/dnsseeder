@@ -1,0 +1,10 @@
+{
+  "Name": "Chipnet All",
+  "Desc": "Bitcoin Cash Chipnet - All",
+  "Id": "0xafdab7e2",
+  "Port": 48333,
+  "Pver": 70016,
+  "DNSName": "chipnet-seed.bchd.cash",
+  "TTL": 600,
+  "Seeder1": "chipnet.bitjson.com"
+}

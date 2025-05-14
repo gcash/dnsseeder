@@ -72,7 +72,11 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	case 0xf4f3e5f4:
 		peerCfg.ChainParams = &chaincfg.TestNet3Params
 	case 0xafdab7e2:
-		peerCfg.ChainParams = &chaincfg.TestNet4Params
+		if s.port == 48333 {
+			peerCfg.ChainParams = &chaincfg.ChipNetParams
+		} else {
+			peerCfg.ChainParams = &chaincfg.TestNet4Params
+		}
 	default:
 		peerCfg.ChainParams = &chaincfg.MainNetParams
 	}

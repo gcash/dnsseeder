@@ -1,0 +1,12 @@
+{
+  "Name": "Chipnet Node CF",
+  "Desc": "Bitcoin Cash Chipnet - NodeCF",
+  "Id": "0xafdab7e2",
+  "Port": 48333,
+  "Pver": 70016,
+  "DNSName": "x101.chipnet-seed.bchd.cash",
+  "TTL": 600,
+  "Seeder1": "chipnet.bitjson.com",
+  "ServiceFilter": ["NodeNetwork", "NodeCF"],
+  "UserAgentFilter": ["bchd:0.21.0"]
+}
