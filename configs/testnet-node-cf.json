@@ -9,5 +9,5 @@
   "Seeder1": "seed.tbch.loping.net",
   "Seeder2": "testnet-seed-bch.bitcoinforks.org",
   "ServiceFilter": ["NodeNetwork", "NodeCF"],
-  "UserAgentFilter": ["bchd:0.21.0"]
+  "UserAgentFilter": ["bchd:0.21.1"]
 }

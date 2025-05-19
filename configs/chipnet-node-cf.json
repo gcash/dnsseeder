@@ -8,5 +8,5 @@
   "TTL": 600,
   "Seeder1": "chipnet.bitjson.com",
   "ServiceFilter": ["NodeNetwork", "NodeCF"],
-  "UserAgentFilter": ["bchd:0.21.0"]
+  "UserAgentFilter": ["bchd:0.21.1"]
 }
