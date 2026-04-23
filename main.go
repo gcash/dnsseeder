@@ -34,7 +34,6 @@ type configData struct {
 	http       string                // port for the web server to listen on
 	version    string                // application version
 	seeders    map[string]*dnsseeder // holds a pointer to all the current seeders
-	smtx       sync.RWMutex          // protect the seeders map
 	order      []string              // the order of loading the netfiles so we can display in this order
 	dns        map[string][]dns.RR   // holds details of all the currently served dns records
 	dnsmtx     sync.RWMutex          // protect the dns map

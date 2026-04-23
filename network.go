@@ -54,7 +54,7 @@ func createNetFile() {
 	if err != nil {
 		log.Printf("error creating template file: %v\n", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	j, jerr := json.MarshalIndent(jnw, "", " ")
 	if jerr != nil {
@@ -69,16 +69,16 @@ func createNetFile() {
 func loadNetwork(fName string) (*dnsseeder, error) {
 	nwFile, err := os.Open(fName)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading network file: %v", err)
+		return nil, fmt.Errorf("error reading network file: %v", err)
 	}
 
-	defer nwFile.Close()
+	defer func() { _ = nwFile.Close() }()
 
 	var jnw JNetwork
 
 	jsonParser := json.NewDecoder(nwFile)
 	if err = jsonParser.Decode(&jnw); err != nil {
-		return nil, fmt.Errorf("Error decoding network file: %v", err)
+		return nil, fmt.Errorf("error decoding network file: %v", err)
 	}
 
 	return initNetwork(jnw)
@@ -86,12 +86,12 @@ func loadNetwork(fName string) (*dnsseeder, error) {
 
 func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 	if jnw.Port == 0 {
-		return nil, fmt.Errorf("Invalid port supplied: %v", jnw.Port)
+		return nil, fmt.Errorf("invalid port supplied: %v", jnw.Port)
 
 	}
 
 	if jnw.DNSName == "" {
-		return nil, fmt.Errorf("No DNS Hostname supplied")
+		return nil, fmt.Errorf("no DNS hostname supplied")
 	}
 
 	// init the seeder
@@ -109,7 +109,7 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 	// conver the network magic number to a Uint32
 	t1, err := strconv.ParseUint(jnw.ID, 0, 32)
 	if err != nil {
-		return nil, fmt.Errorf("Error converting Network Magic number: %v", err)
+		return nil, fmt.Errorf("error converting network magic number: %v", err)
 	}
 	seeder.id = wire.BitcoinNet(t1)
 
@@ -171,7 +171,7 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 
 	cacheFile, err := os.Open(path.Join(config.dataDir, fmt.Sprintf("%s.json", seeder.name)))
 	if err == nil {
-		defer cacheFile.Close()
+		defer func() { _ = cacheFile.Close() }()
 		jsonParser := json.NewDecoder(cacheFile)
 		if err = jsonParser.Decode(&seeder.theList); err != nil {
 			log.Printf("Error decoding cache file: %v", err)

@@ -39,7 +39,7 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 	s := getSeederByName(n)
 	if s == nil {
 		writeHeader(w, r)
-		fmt.Fprintf(w, "No seeder found: %s", html.EscapeString(n))
+		_, _ = fmt.Fprintf(w, "No seeder found: %s", html.EscapeString(n))
 		writeFooter(w, r, st)
 		return
 	}
@@ -120,9 +120,9 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 	`
 
 	writeHeader(w, r)
-	fmt.Fprintf(w, "<b>Currently serving the following DNS records</b>")
-	fmt.Fprintf(w, "<p><center><b>IPv4</b></center></p>")
-	fmt.Fprint(w, t1)
+	_, _ = fmt.Fprintf(w, "<b>Currently serving the following DNS records</b>")
+	_, _ = fmt.Fprintf(w, "<p><center><b>IPv4</b></center></p>")
+	_, _ = fmt.Fprint(w, t1)
 
 	t := template.New("v4 template")
 	t, err := t.Parse(t2)
@@ -134,33 +134,33 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error executing template v4 %v\n", err)
 	}
 
-	fmt.Fprint(w, t3)
+	_, _ = fmt.Fprint(w, t3)
 
 	err = t.Execute(w, v4nonstr)
 	if err != nil {
 		log.Printf("error executing template v4 non %v\n", err)
 	}
 
-	fmt.Fprint(w, t4)
+	_, _ = fmt.Fprint(w, t4)
 
 	// ipv6 records
 
-	fmt.Fprintf(w, "<p><center><b>IPv6</b></center></p>")
-	fmt.Fprint(w, t1)
+	_, _ = fmt.Fprintf(w, "<p><center><b>IPv6</b></center></p>")
+	_, _ = fmt.Fprint(w, t1)
 
 	err = t.Execute(w, v6stdstr)
 	if err != nil {
 		log.Printf("error executing template v6 %v\n", err)
 	}
 
-	fmt.Fprint(w, t3)
+	_, _ = fmt.Fprint(w, t3)
 
 	err = t.Execute(w, v6nonstr)
 	if err != nil {
 		log.Printf("error executing template v6 non %v\n", err)
 	}
 
-	fmt.Fprint(w, t4)
+	_, _ = fmt.Fprint(w, t4)
 	writeFooter(w, r, st)
 }
 
@@ -168,7 +168,7 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 func emptyHandler(w http.ResponseWriter, _ *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
-	fmt.Fprintf(w, "Nothing to see here. Move along please\n")
+	_, _ = fmt.Fprintf(w, "Nothing to see here. Move along please\n")
 }
 
 func statusRGHandler(w http.ResponseWriter, r *http.Request) {
@@ -199,7 +199,7 @@ func statusHandler(w http.ResponseWriter, r *http.Request, status uint32) {
 	s := getSeederByName(n)
 	if s == nil {
 		writeHeader(w, r)
-		fmt.Fprintf(w, "No seeder found called %s", html.EscapeString(n))
+		_, _ = fmt.Fprintf(w, "No seeder found called %s", html.EscapeString(n))
 		writeFooter(w, r, startT)
 		return
 	}
@@ -231,18 +231,18 @@ func statusHandler(w http.ResponseWriter, r *http.Request, status uint32) {
 	writeHeader(w, r)
 
 	if len(ws) == 0 {
-		fmt.Fprintf(w, "No Nodes found with this status")
+		_, _ = fmt.Fprintf(w, "No Nodes found with this status")
 	} else {
 
 		switch status {
 		case statusRG:
-			fmt.Fprintf(w, "<center><b>Node Status: statusRG - (Reported Good) Have not been able to get addresses yet</b></center>")
+			_, _ = fmt.Fprintf(w, "<center><b>Node Status: statusRG - (Reported Good) Have not been able to get addresses yet</b></center>")
 		case statusCG:
-			fmt.Fprintf(w, "<center><b>Node Status: statusCG - (Currently Good) Able to connect and get addresses</b></center>")
+			_, _ = fmt.Fprintf(w, "<center><b>Node Status: statusCG - (Currently Good) Able to connect and get addresses</b></center>")
 		case statusWG:
-			fmt.Fprintf(w, "<center><b>Node Status: statusWG - (Was Good) Was Ok but now can not get addresses</b></center>")
+			_, _ = fmt.Fprintf(w, "<center><b>Node Status: statusWG - (Was Good) Was Ok but now can not get addresses</b></center>")
 		case statusNG:
-			fmt.Fprintf(w, "<center><b>Node Status: statusNG - (No Good) Unable to get addresses</b></center>")
+			_, _ = fmt.Fprintf(w, "<center><b>Node Status: statusNG - (No Good) Unable to get addresses</b></center>")
 		}
 		t := template.New("Status template")
 		t, err := t.Parse(st)
@@ -366,7 +366,7 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 	s := getSeederByName(n)
 	if s == nil {
 		writeHeader(w, r)
-		fmt.Fprintf(w, "No seeder found called %s", html.EscapeString(n))
+		_, _ = fmt.Fprintf(w, "No seeder found called %s", html.EscapeString(n))
 		writeFooter(w, r, st)
 		return
 	}
@@ -377,7 +377,7 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 	k := r.FormValue("nd")
 	writeHeader(w, r)
 	if _, ok := s.theList[k]; !ok {
-		fmt.Fprintf(w, "Sorry there is no Node with those details\n")
+		_, _ = fmt.Fprintf(w, "Sorry there is no Node with those details\n")
 	} else {
 
 		nd := s.theList[k]
@@ -513,17 +513,17 @@ func writeHeader(w http.ResponseWriter, r *http.Request) {
 	<center>
 	<a href="/summary">Summary</a>
 `
-	fmt.Fprint(w, h1)
+	_, _ = fmt.Fprint(w, h1)
 
 	// read the seeder name
 	n := r.FormValue("s")
 	if n != "" {
 		s := getSeederByName(n)
 		if s != nil {
-			fmt.Fprintf(w, "<br><b>Seeder: %s</b>", html.EscapeString(s.name))
+			_, _ = fmt.Fprintf(w, "<br><b>Seeder: %s</b>", html.EscapeString(s.name))
 		}
 	}
-	fmt.Fprintf(w, "</center><hr><br>")
+	_, _ = fmt.Fprintf(w, "</center><hr><br>")
 }
 
 // writeFooter will output the standard footer

@@ -179,7 +179,9 @@ func handleDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 	config.dnsmtx.RUnlock()
 
-	w.WriteMsg(m)
+	if err := w.WriteMsg(m); err != nil {
+		log.Printf("error writing DNS response: %v\n", err)
+	}
 
 	if config.debug {
 		log.Printf("debug - DNS response Type: standard  To IP: %s  Query Type: %s\n", w.RemoteAddr().String(), qtype)

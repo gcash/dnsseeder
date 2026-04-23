@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -30,8 +29,6 @@ const (
 	cacheDumpDelay = 10 // minutes between writing cache to disk
 
 	maxFails = 58 // max number of connect fails before we delete a node. Just over 24 hours(checked every 33 minutes)
-
-	maxTo = 250 // max seconds (4min 10 sec) for all comms to node to complete before we timeout
 )
 
 const (
@@ -299,13 +296,9 @@ func (s *dnsseeder) processResult(r *result) {
 		}
 	}
 
-	matchesUserAgentFilter := false
-
 	// If there are no UserAgentFilter's then it's actually a match since
 	// we aren't filtering.
-	if len(s.userAgentFilter) == 0 {
-		matchesUserAgentFilter = true
-	}
+	matchesUserAgentFilter := len(s.userAgentFilter) == 0
 
 	for _, ua := range s.userAgentFilter {
 		if strings.Contains(strings.ToLower(r.strVersion), strings.ToLower(ua)) {
@@ -443,7 +436,7 @@ func (s *dnsseeder) dumpCache() {
 	if err != nil {
 		log.Printf("error marshalling cache: %s\n", err)
 	}
-	if err := ioutil.WriteFile(cachePath, out, os.ModePerm); err != nil {
+	if err := os.WriteFile(cachePath, out, os.ModePerm); err != nil {
 		log.Printf("error writing cache: %s\n", err)
 	}
 }
@@ -580,7 +573,7 @@ func isDuplicateSeeder(s *dnsseeder) (bool, error) {
 	// check for duplicate seeders with the same details
 	for _, v := range config.seeders {
 		if v.dnsHost == s.dnsHost {
-			return true, fmt.Errorf("Duplicate DNS names. Already loaded %s for %s so can not be used for %s", v.dnsHost, v.name, s.name)
+			return true, fmt.Errorf("duplicate DNS names. Already loaded %s for %s so can not be used for %s", v.dnsHost, v.name, s.name)
 		}
 	}
 	return false, nil
