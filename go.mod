@@ -3,7 +3,7 @@ module github.com/gcash/dnsseeder
 go 1.25.0
 
 require (
-	github.com/gcash/bchd v0.22.0
+	github.com/gcash/bchd v0.22.1
 	github.com/gcash/bchutil v0.0.0-20260424004602-9ef0dd41449e
 	github.com/miekg/dns v1.1.72
 )
@@ -14,12 +14,12 @@ require (
 	github.com/dchest/siphash v1.2.3 // indirect
 	github.com/gcash/bchlog v0.0.0-20180913005452-b4f036f92fa6 // indirect
 	github.com/zquestz/grab v0.0.0-20190224022517-abcee96e61b1 // indirect
-	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/mod v0.35.0 // indirect
-	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/text v0.36.0 // indirect
-	golang.org/x/tools v0.44.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/mod v0.37.0 // indirect
+	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/tools v0.47.0 // indirect
 	lukechampine.com/uint128 v1.3.0 // indirect
 )
