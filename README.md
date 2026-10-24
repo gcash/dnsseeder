@@ -2,7 +2,6 @@ dnsseeder
 =========
 
 [![Build Status](https://github.com/gcash/dnsseeder/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/gcash/dnsseeder/actions/workflows/main.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/gcash/dnsseeder)](https://goreportcard.com/report/github.com/gcash/dnsseeder)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](http://godoc.org/github.com/gcash/dnsseeder)
 
