@@ -296,18 +296,7 @@ func (s *dnsseeder) processResult(r *result) {
 		}
 	}
 
-	// If there are no UserAgentFilter's then it's actually a match since
-	// we aren't filtering.
-	matchesUserAgentFilter := len(s.userAgentFilter) == 0
-
-	for _, ua := range s.userAgentFilter {
-		if strings.Contains(strings.ToLower(r.strVersion), strings.ToLower(ua)) {
-			matchesUserAgentFilter = true
-			break
-		}
-	}
-
-	if matchesServiceFilter && matchesUserAgentFilter {
+	if matchesServiceFilter && s.matchesUserAgentFilter(r.strVersion) {
 		nd.Status = statusCG
 	} else {
 		// We can set nodes that don't meet the filters to was good. This will ensure they stick around for a little
@@ -565,6 +554,21 @@ func getSeederByName(name string) *dnsseeder {
 		}
 	}
 	return nil
+}
+
+// matchesUserAgentFilter returns true if a node with the user agent ua passes
+// the seeder's user agent filter: its user agent contains one of the filter's
+// strings, ignoring case.  Every node passes when there is no filter.
+func (s *dnsseeder) matchesUserAgentFilter(ua string) bool {
+	if len(s.userAgentFilter) == 0 {
+		return true
+	}
+	for _, f := range s.userAgentFilter {
+		if strings.Contains(strings.ToLower(ua), strings.ToLower(f)) {
+			return true
+		}
+	}
+	return false
 }
 
 // isDuplicateSeeder returns true if the seeder details already exist in the application

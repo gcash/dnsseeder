@@ -5,6 +5,7 @@
   "Port": 28333,
   "Pver": 70016,
   "DNSName": "testnet4-seed.bchd.cash",
+  "NameServer": "dnsseeder.bchd.cash",
   "TTL": 600,
   "Seeder1": "testnet4-seed-bch.toom.im",
   "Seeder2": "seed.tbch4.loping.net",

@@ -5,10 +5,11 @@
   "Port": 8333,
   "Pver": 70016,
   "DNSName": "x101.seed.bchd.cash",
+  "NameServer": "dnsseeder.bchd.cash",
   "TTL": 600,
   "Seeder1": "btccash-seeder.bitcoinunlimited.info",
   "Seeder2": "seed.bch.loping.net",
   "Seeder3": "dnsseed.electroncash.de",
   "ServiceFilter": ["NodeNetwork", "NodeCF"],
-  "UserAgentFilter": ["bchd:0.22.3"]
+  "UserAgentFilter": ["bchd:0.22."]
 }

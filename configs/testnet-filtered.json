@@ -5,6 +5,7 @@
   "Port": 18333,
   "Pver": 70016,
   "DNSName": "x105.testnet-seed.bchd.cash",
+  "NameServer": "dnsseeder.bchd.cash",
   "TTL": 600,
   "Seeder1": "seed.tbch.loping.net",
   "Seeder2": "testnet-seed-bch.bitcoinforks.org",

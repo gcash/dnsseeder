@@ -5,6 +5,8 @@
   "Port": 48333,
   "Pver": 70016,
   "DNSName": "seeder.example.com",
+  "NameServer": "nameserver.example.com",
+  "Mbox": "admin.example.com",
   "TTL": 300,
   "Seeder1": "chipnet.bitjson.com",
   "ServiceFilter": ["NodeNetwork"]

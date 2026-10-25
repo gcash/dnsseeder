@@ -5,9 +5,10 @@
   "Port": 18333,
   "Pver": 70016,
   "DNSName": "x101.testnet-seed.bchd.cash",
+  "NameServer": "dnsseeder.bchd.cash",
   "TTL": 600,
   "Seeder1": "seed.tbch.loping.net",
   "Seeder2": "testnet-seed-bch.bitcoinforks.org",
   "ServiceFilter": ["NodeNetwork", "NodeCF"],
-  "UserAgentFilter": ["bchd:0.22.3"]
+  "UserAgentFilter": ["bchd:0.22."]
 }

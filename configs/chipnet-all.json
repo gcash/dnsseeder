@@ -5,6 +5,7 @@
   "Port": 48333,
   "Pver": 70016,
   "DNSName": "chipnet-seed.bchd.cash",
+  "NameServer": "dnsseeder.bchd.cash",
   "TTL": 600,
   "Seeder1": "chipnet.bitjson.com"
 }

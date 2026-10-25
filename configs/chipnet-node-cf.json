@@ -5,8 +5,9 @@
   "Port": 48333,
   "Pver": 70016,
   "DNSName": "x101.chipnet-seed.bchd.cash",
+  "NameServer": "dnsseeder.bchd.cash",
   "TTL": 600,
   "Seeder1": "chipnet.bitjson.com",
   "ServiceFilter": ["NodeNetwork", "NodeCF"],
-  "UserAgentFilter": ["bchd:0.22.3"]
+  "UserAgentFilter": ["bchd:0.22."]
 }

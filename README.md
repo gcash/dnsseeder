@@ -64,6 +64,10 @@ port 53 directly.
 
 If you want to seed peers on `seed.example.com`, say, and this software is running on `vps.example.com` then you need to put a `NS` record into the `seed.example.com` DNS record pointing to `vps.example.com`.
 
+Set `NameServer` in the network config file to the host the `NS` record points to, `vps.example.com` here. The seeder answers queries for the `NS` and `SOA` records of its DNS name with it, and with `.` when it is not set. `Mbox`, optional, is the zone administrator's email address for the `SOA` record, with the `@` replaced by a period, such as `admin.example.com`; without it the record holds `.`.
+
+`ServiceFilter` and `UserAgentFilter` limit the nodes a seeder returns to those that advertise every listed service and whose user agent contains one of the listed strings, ignoring case. The `x101` configs return bchd nodes that serve compact filters, with `"UserAgentFilter": ["bchd:0.22."]`, which matches every 0.22 release.
+
 ## RUNNING AS NON-ROOT
 
 Typically, you'll need root privileges to listen to port 53 (name service).

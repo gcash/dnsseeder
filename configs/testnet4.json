@@ -5,6 +5,8 @@
   "Port": 28333,
   "Pver": 70016,
   "DNSName": "seeder.example.com",
+  "NameServer": "nameserver.example.com",
+  "Mbox": "admin.example.com",
   "TTL": 300,
   "Seeder1": "testnet4-seed-bch.toom.im",
   "Seeder2": "seed.tbch4.loping.net",

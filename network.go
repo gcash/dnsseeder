@@ -94,6 +94,11 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 		return nil, fmt.Errorf("no DNS hostname supplied")
 	}
 
+	if jnw.NameServer == "" {
+		log.Printf("%s: warning: NameServer is not set, so the NS and SOA records for %s name \".\" instead of this server\n",
+			jnw.Name, jnw.DNSName)
+	}
+
 	// init the seeder
 	seeder := &dnsseeder{}
 	seeder.theList = make(map[string]*node)
