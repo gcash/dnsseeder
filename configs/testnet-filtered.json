@@ -8,6 +8,6 @@
   "NameServer": "dnsseeder.bchd.cash",
   "TTL": 600,
   "Seeder1": "seed.tbch.loping.net",
-  "Seeder2": "testnet-seed-bch.bitcoinforks.org",
+  "Seeder2": "testnet-seed.bitcoinunlimited.info",
   "ServiceFilter": ["NodeNetwork", "NodeCF", "NodeBloom"]
 }

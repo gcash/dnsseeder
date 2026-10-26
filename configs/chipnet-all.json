@@ -8,5 +8,6 @@
   "NameServer": "dnsseeder.bchd.cash",
   "TTL": 600,
   "Seeder1": "chipnet.bitjson.com",
+  "Seeder2": "seed.cbch.loping.net",
   "ServiceFilter": ["NodeNetwork"]
 }

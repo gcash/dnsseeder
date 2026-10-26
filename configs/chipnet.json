@@ -9,5 +9,6 @@
   "Mbox": "admin.example.com",
   "TTL": 300,
   "Seeder1": "chipnet.bitjson.com",
+  "Seeder2": "seed.cbch.loping.net",
   "ServiceFilter": ["NodeNetwork"]
 }
