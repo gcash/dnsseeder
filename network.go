@@ -107,7 +107,7 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 	seeder.ttl = jnw.TTL
 	seeder.name = jnw.Name
 	seeder.desc = jnw.Desc
-	seeder.dnsHost = jnw.DNSName
+	seeder.dnsHost = strings.ToLower(jnw.DNSName)
 	seeder.nameServer = jnw.NameServer
 	seeder.mbox = jnw.Mbox
 

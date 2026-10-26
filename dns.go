@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gcash/bchd/wire"
@@ -173,9 +174,14 @@ func handleDNS(w dns.ResponseWriter, r *dns.Msg) {
 		qtype = "UNKNOWN"
 	}
 
+	// DNS names are case-insensitive, and resolvers such as Google Public DNS
+	// randomize the case of the names they ask for (DNS 0x20), so look the
+	// name up in lower case, the case the records are stored in.
+	name := strings.ToLower(r.Question[0].Name)
+
 	config.dnsmtx.RLock()
 	// if the dns map does not have a key for the request it will return an empty slice
-	m.Answer = config.dns[r.Question[0].Name+qtype]
+	m.Answer = config.dns[name+qtype]
 
 	config.dnsmtx.RUnlock()
 
@@ -187,7 +193,7 @@ func handleDNS(w dns.ResponseWriter, r *dns.Msg) {
 		log.Printf("debug - DNS response Type: standard  To IP: %s  Query Type: %s\n", w.RemoteAddr().String(), qtype)
 	}
 	// update the stats in a goroutine
-	go updateDNSCounts(r.Question[0].Name, qtype)
+	go updateDNSCounts(name, qtype)
 }
 
 // serve starts the requested DNS server listening on the requested port
