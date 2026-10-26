@@ -3,7 +3,10 @@ package main
 import (
 	"fmt"
 	"net"
+	"runtime"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gcash/bchd/wire"
 )
@@ -98,4 +101,56 @@ func TestCrawlFullSeeder(t *testing.T) {
 		t.Fatal("the crawl left the list locked")
 	}
 	s.mtx.Unlock()
+}
+
+// goroutinesIn returns the number of goroutines with fn on their stack.
+func goroutinesIn(fn string) int {
+	buf := make([]byte, 1<<20)
+	buf = buf[:runtime.Stack(buf, true)]
+	n := 0
+	for _, g := range strings.Split(string(buf), "\n\n") {
+		if strings.Contains(g, fn) {
+			n++
+		}
+	}
+	return n
+}
+
+// TestCrawlExtraAddr ensures an addr message that arrives after the crawl
+// took the one it waits for doesn't block the crawled node's goroutine in the
+// crawl's listener, where it then stayed for good.
+func TestCrawlExtraAddr(t *testing.T) {
+	addr := fakeNode(t, func(conn net.Conn, _ *wire.MsgVersion) {
+		msg := wire.NewMsgAddr()
+		na := wire.NewNetAddressIPPort(net.IPv4(1, 2, 3, 4), 8333, wire.SFNodeNetwork)
+		if err := msg.AddAddress(na); err != nil {
+			return
+		}
+		for i := 0; i < 2; i++ {
+			if err := wire.WriteMessage(conn, msg, wire.ProtocolVersion, wire.MainNet); err != nil {
+				return
+			}
+		}
+	})
+	s := &dnsseeder{name: "Test", theList: map[string]*node{}, maxSize: 100}
+
+	// One crawl in about 13 left a goroutine in the listener.
+	for i := 0; i < 100; i++ {
+		if _, cerr := crawlIP(s, &result{node: addr}); cerr != nil {
+			t.Fatal(cerr)
+		}
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		n := goroutinesIn("dnsseeder.crawlIP.func")
+		if n == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("%d goroutines blocked in the crawl's listeners "+
+				"after 100 crawls", n)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }

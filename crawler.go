@@ -42,15 +42,20 @@ func crawlNode(rc chan *result, s *dnsseeder, nd *node) {
 
 // crawlIP retrievs a slice of ip addresses from a client
 func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
-	verack := make(chan struct{})
-	onAddr := make(chan *wire.MsgAddr)
+	// The listeners run on the peer's goroutine and must not block it: a
+	// message that arrives once the crawl no longer waits for it is dropped.
+	verack := make(chan struct{}, 1)
+	onAddr := make(chan *wire.MsgAddr, 1)
 	peerCfg := &peer.Config{
 		UserAgentName:    "dnsseeder", // User agent name to advertise.
 		UserAgentVersion: "1.5.3",     // User agent version to advertise.
 		Services:         0,
 		Listeners: peer.MessageListeners{
 			OnAddr: func(_ *peer.Peer, msg *wire.MsgAddr) {
-				onAddr <- msg
+				select {
+				case onAddr <- msg:
+				default:
+				}
 			},
 			OnVersion: func(_ *peer.Peer, msg *wire.MsgVersion) *wire.MsgReject {
 				if config.debug {
@@ -64,7 +69,10 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 				return nil
 			},
 			OnVerAck: func(_ *peer.Peer, _ *wire.MsgVerAck) {
-				verack <- struct{}{}
+				select {
+				case verack <- struct{}{}:
+				default:
+				}
 			},
 		},
 	}
