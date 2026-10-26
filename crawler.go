@@ -130,14 +130,16 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	// to getaddr, up to 1000 addresses, on a later address broadcast: up
 	// to 46 seconds later in a probe of BCHN nodes, or not at all.  So
 	// collect the addresses of every addr message until one with more than
-	// one address arrives, for up to a minute.
+	// one address arrives, for up to a minute.  Stop at as many addresses
+	// as one addr message may hold, so a node that keeps sending one at a
+	// time can't make the crawl hold more.
 	var addrs []*wire.NetAddress
 	timeout := time.After(time.Minute)
 	for {
 		select {
 		case msg := <-onAddr:
 			addrs = append(addrs, msg.AddrList...)
-			if len(msg.AddrList) > 1 {
+			if len(msg.AddrList) > 1 || len(addrs) >= wire.MaxAddrPerMsg {
 				return addrs, nil
 			}
 		case <-timeout:

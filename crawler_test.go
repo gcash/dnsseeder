@@ -212,3 +212,30 @@ func TestCrawlNoRelay(t *testing.T) {
 		t.Error("the crawl asked the node to announce transactions")
 	}
 }
+
+// TestCrawlAddrLimit ensures a crawl stops collecting addresses at as many as
+// one addr message may hold.  A node that kept sending one address at a time
+// made it collect every address it sent for a minute.
+func TestCrawlAddrLimit(t *testing.T) {
+	addr := fakeNode(t, func(conn net.Conn, _ *wire.MsgVersion) {
+		msg := testAddrMsg(net.IPv4(1, 2, 3, 4))
+		for {
+			if err := wire.WriteMessage(conn, msg, wire.ProtocolVersion, wire.MainNet); err != nil {
+				return
+			}
+		}
+	})
+	s := &dnsseeder{name: "Test", theList: map[string]*node{}, maxSize: 100}
+
+	start := time.Now()
+	nas, cerr := crawlIP(s, &result{node: addr})
+	if cerr != nil {
+		t.Fatal(cerr)
+	}
+	if len(nas) != wire.MaxAddrPerMsg {
+		t.Errorf("crawl returned %d addresses, want %d", len(nas), wire.MaxAddrPerMsg)
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Errorf("crawl took %v", elapsed)
+	}
+}
