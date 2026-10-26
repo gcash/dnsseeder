@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/miekg/dns"
 )
 
 // startHTTP runs in a goroutine and provides the web interface
@@ -44,56 +46,6 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// FIXME - This is ugly code and needs to be cleaned up a lot
-
-	config.dnsmtx.RLock()
-	// if the dns map does not have a key for the request it will return an empty slice
-	v4std := config.dns[s.dnsHost+".A"]
-	v4non := config.dns["nonstd."+s.dnsHost+".A"]
-	v6std := config.dns[s.dnsHost+".AAAA"]
-	v6non := config.dns["nonstd."+s.dnsHost+".AAAA"]
-	config.dnsmtx.RUnlock()
-
-	var v4stdstr, v4nonstr []string
-	var v6stdstr, v6nonstr []string
-
-	if x := len(v4std); x > 0 {
-		v4stdstr = make([]string, x)
-		for k, v := range v4std {
-			v4stdstr[k] = v.String()
-		}
-	} else {
-		v4stdstr = []string{"No records Available"}
-	}
-
-	if x := len(v4non); x > 0 {
-		v4nonstr = make([]string, x)
-		for k, v := range v4non {
-			v4nonstr[k] = v.String()
-		}
-	} else {
-		v4nonstr = []string{"No records Available"}
-	}
-
-	// ipv6
-	if x := len(v6std); x > 0 {
-		v6stdstr = make([]string, x)
-		for k, v := range v6std {
-			v6stdstr[k] = v.String()
-		}
-	} else {
-		v6stdstr = []string{"No records Available"}
-	}
-
-	if x := len(v6non); x > 0 {
-		v6nonstr = make([]string, x)
-		for k, v := range v6non {
-			v6nonstr[k] = v.String()
-		}
-	} else {
-		v6nonstr = []string{"No records Available"}
-	}
-
 	t1 := `
 	<center>
 	<table border=1>
@@ -119,49 +71,57 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 	</center>
 	`
 
+	t, err := template.New("records template").Parse(t2)
+	if err != nil {
+		log.Printf("error parsing records template %v\n", err)
+	}
+
 	writeHeader(w, r)
 	_, _ = fmt.Fprintf(w, "<b>Currently serving the following DNS records</b>")
-	_, _ = fmt.Fprintf(w, "<p><center><b>IPv4</b></center></p>")
-	_, _ = fmt.Fprint(w, t1)
 
-	t := template.New("v4 template")
-	t, err := t.Parse(t2)
-	if err != nil {
-		log.Printf("error parsing template v4 %v\n", err)
+	for _, name := range s.names {
+		config.dnsmtx.RLock()
+		// if the dns map does not have a key for the request it will return an empty slice
+		v4std := recordStrings(config.dns[name.host+".A"])
+		v4non := recordStrings(config.dns["nonstd."+name.host+".A"])
+		v6std := recordStrings(config.dns[name.host+".AAAA"])
+		v6non := recordStrings(config.dns["nonstd."+name.host+".AAAA"])
+		config.dnsmtx.RUnlock()
+
+		_, _ = fmt.Fprintf(w, "<p><center><b>%s</b></center></p>", html.EscapeString(name.host))
+		tables := []struct {
+			title    string
+			std, non []string
+		}{
+			{"IPv4", v4std, v4non},
+			{"IPv6", v6std, v6non},
+		}
+		for _, table := range tables {
+			_, _ = fmt.Fprintf(w, "<p><center><b>%s</b></center></p>", table.title)
+			_, _ = fmt.Fprint(w, t1)
+			if err := t.Execute(w, table.std); err != nil {
+				log.Printf("error executing records template %v\n", err)
+			}
+			_, _ = fmt.Fprint(w, t3)
+			if err := t.Execute(w, table.non); err != nil {
+				log.Printf("error executing records template %v\n", err)
+			}
+			_, _ = fmt.Fprint(w, t4)
+		}
 	}
-	err = t.Execute(w, v4stdstr)
-	if err != nil {
-		log.Printf("error executing template v4 %v\n", err)
-	}
-
-	_, _ = fmt.Fprint(w, t3)
-
-	err = t.Execute(w, v4nonstr)
-	if err != nil {
-		log.Printf("error executing template v4 non %v\n", err)
-	}
-
-	_, _ = fmt.Fprint(w, t4)
-
-	// ipv6 records
-
-	_, _ = fmt.Fprintf(w, "<p><center><b>IPv6</b></center></p>")
-	_, _ = fmt.Fprint(w, t1)
-
-	err = t.Execute(w, v6stdstr)
-	if err != nil {
-		log.Printf("error executing template v6 %v\n", err)
-	}
-
-	_, _ = fmt.Fprint(w, t3)
-
-	err = t.Execute(w, v6nonstr)
-	if err != nil {
-		log.Printf("error executing template v6 non %v\n", err)
-	}
-
-	_, _ = fmt.Fprint(w, t4)
 	writeFooter(w, r, st)
+}
+
+// recordStrings returns the text of the records rrs for the dns page
+func recordStrings(rrs []dns.RR) []string {
+	if len(rrs) == 0 {
+		return []string{"No records Available"}
+	}
+	strs := make([]string, len(rrs))
+	for i, rr := range rrs {
+		strs[i] = rr.String()
+	}
+	return strs
 }
 
 // emptyHandler processes all requests for non-existent urls

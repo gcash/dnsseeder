@@ -50,25 +50,71 @@ const (
 )
 
 type dnsseeder struct {
-	id              wire.BitcoinNet    // Magic number - Unique ID for this network. Sent in header of all messages
-	theList         map[string]*node   // the list of current nodes
-	mtx             sync.RWMutex       // protect thelist
-	dnsHost         string             // dns host we will serve results for this domain
-	nameServer      string             // the hostname of the nameserver
-	mbox            string             // E-Mail address reported in SOA records
-	name            string             // Short name for the network
-	desc            string             // Long description for the network
-	initialIPs      []string           // Initial ip address to connect to and ask for addresses if we have no seeders
-	seeders         []string           // slice of seeders to pull ip addresses when starting this seeder
-	maxStart        []uint32           // max number of goroutines to start each run for each status type
-	delay           []int64            // number of seconds to wait before we connect to a known client for each status
-	counts          NodeCounts         // structure to hold stats for this seeder
-	pver            uint32             // minimum protocol version a node must speak to be returned
-	ttl             uint32             // DNS TTL to use for this seeder
-	maxSize         int                // max number of clients before we start restricting new entries
-	port            uint16             // default network port this seeder uses
-	serviceFilter   []wire.ServiceFlag // Only respond to DNS query with nodes that support this filter
-	userAgentFilter []string           // Only respond to dns queries with nodes whose useragent contains this string
+	id         wire.BitcoinNet  // Magic number - Unique ID for this network. Sent in header of all messages
+	theList    map[string]*node // the list of current nodes
+	mtx        sync.RWMutex     // protect thelist
+	names      []dnsName        // the dns names we serve results for, each with its filters
+	nameServer string           // the hostname of the nameserver
+	mbox       string           // E-Mail address reported in SOA records
+	name       string           // Short name for the network
+	desc       string           // Long description for the network
+	initialIPs []string         // Initial ip address to connect to and ask for addresses if we have no seeders
+	seeders    []string         // slice of seeders to pull ip addresses when starting this seeder
+	maxStart   []uint32         // max number of goroutines to start each run for each status type
+	delay      []int64          // number of seconds to wait before we connect to a known client for each status
+	counts     NodeCounts       // structure to hold stats for this seeder
+	pver       uint32           // minimum protocol version a node must speak to be returned
+	ttl        uint32           // DNS TTL to use for this seeder
+	maxSize    int              // max number of clients before we start restricting new entries
+	port       uint16           // default network port this seeder uses
+}
+
+// dnsName is a dns name a seeder serves, with the filters of the nodes it
+// returns.  The seeder crawls the network once for all its names.
+type dnsName struct {
+	host            string             // the name, in lower case
+	serviceFilter   []wire.ServiceFlag // Only respond with nodes that support this filter
+	userAgentFilter []string           // Only respond with nodes whose useragent contains one of these strings
+}
+
+// returns returns true if the name returns nd: the node advertises every
+// service of the name's service filter and passes its user agent filter.
+func (n *dnsName) returns(nd *node) bool {
+	for _, service := range n.serviceFilter {
+		if !HasService(nd.Services, service) {
+			return false
+		}
+	}
+	return n.matchesUserAgentFilter(nd.StrVersion)
+}
+
+// matchesUserAgentFilter returns true if a node with the user agent ua passes
+// the name's user agent filter: its user agent contains one of the filter's
+// strings, ignoring case.  Every node passes when there is no filter.
+func (n *dnsName) matchesUserAgentFilter(ua string) bool {
+	if len(n.userAgentFilter) == 0 {
+		return true
+	}
+	for _, f := range n.userAgentFilter {
+		if strings.Contains(strings.ToLower(ua), strings.ToLower(f)) {
+			return true
+		}
+	}
+	return false
+}
+
+// filtersFullNodes returns true if the name returns only some of the full
+// nodes, as its filters ask for more than NodeNetwork.
+func (n *dnsName) filtersFullNodes() bool {
+	if len(n.userAgentFilter) > 0 {
+		return true
+	}
+	for _, service := range n.serviceFilter {
+		if service != wire.SFNodeNetwork {
+			return true
+		}
+	}
+	return false
 }
 
 type result struct {
@@ -293,22 +339,14 @@ func (s *dnsseeder) processResult(r *result) {
 		return
 	}
 
-	// successful connection and addresses received so check filters then mark status
-	matchesServiceFilter := true
-	for _, service := range s.serviceFilter {
-		if !HasService(r.services, service) {
-			matchesServiceFilter = false
-			break
-		}
-	}
-
-	// compare as int64, so a negative version isn't taken for a huge one
-	matchesVersion := int64(r.version) >= int64(s.pver)
-
-	if matchesServiceFilter && matchesVersion && s.matchesUserAgentFilter(r.strVersion) {
+	// successful connection and addresses received so mark the node good if
+	// it speaks the minimum protocol version. Each dns name filters the good
+	// nodes it returns when its records are built. Compare as int64, so a
+	// negative version isn't taken for a huge one.
+	if int64(r.version) >= int64(s.pver) {
 		nd.Status = statusCG
 	} else {
-		// We can set nodes that don't meet the filters to was good. This will ensure they stick around for a little
+		// We can set nodes below the minimum version to was good. This will ensure they stick around for a little
 		// while so we can ask them for more addresses. Eventually they will be purged.
 		nd.Status = statusWG
 	}
@@ -550,9 +588,11 @@ func (s *dnsseeder) auditNodes() {
 			delete(s.theList, k)
 		}
 
-		// check if we need to purge statusCG to freshen the list
+		// check if we need to purge statusCG to freshen the list, but keep
+		// the nodes a filtered name returns, which are few among the good
+		// nodes, so they don't drop out of its answers
 		if nd.Status == statusCG {
-			if cgCount++; cgCount > cgGoal {
+			if cgCount++; cgCount > cgGoal && !s.filteredNameReturns(nd) {
 				// we have enough statusCG clients so purge remaining to cycle through the list
 				if config.verbose {
 					log.Printf("%s: seeder cycle statusCG - purging node %s\n", s.name, k)
@@ -585,28 +625,34 @@ func getSeederByName(name string) *dnsseeder {
 	return nil
 }
 
-// matchesUserAgentFilter returns true if a node with the user agent ua passes
-// the seeder's user agent filter: its user agent contains one of the filter's
-// strings, ignoring case.  Every node passes when there is no filter.
-func (s *dnsseeder) matchesUserAgentFilter(ua string) bool {
-	if len(s.userAgentFilter) == 0 {
-		return true
-	}
-	for _, f := range s.userAgentFilter {
-		if strings.Contains(strings.ToLower(ua), strings.ToLower(f)) {
+// filteredNameReturns returns true if one of the seeder's names that returns
+// only some of the full nodes returns nd.
+func (s *dnsseeder) filteredNameReturns(nd *node) bool {
+	for i := range s.names {
+		if s.names[i].filtersFullNodes() && s.names[i].returns(nd) {
 			return true
 		}
 	}
 	return false
 }
 
-// isDuplicateSeeder returns true if the seeder details already exist in the application
+// isDuplicateSeeder returns true if the seeder serves a dns name twice, or one
+// that a loaded seeder serves
 func isDuplicateSeeder(s *dnsseeder) (bool, error) {
 
 	// check for duplicate seeders with the same details
-	for _, v := range config.seeders {
-		if v.dnsHost == s.dnsHost {
-			return true, fmt.Errorf("duplicate DNS names. Already loaded %s for %s so can not be used for %s", v.dnsHost, v.name, s.name)
+	for i, n := range s.names {
+		for _, m := range s.names[:i] {
+			if m.host == n.host {
+				return true, fmt.Errorf("duplicate DNS name %s in %s", n.host, s.name)
+			}
+		}
+		for _, v := range config.seeders {
+			for _, m := range v.names {
+				if m.host == n.host {
+					return true, fmt.Errorf("duplicate DNS names. Already loaded %s for %s so can not be used for %s", n.host, v.name, s.name)
+				}
+			}
 		}
 	}
 	return false, nil

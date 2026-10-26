@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"net"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -117,8 +118,8 @@ func waitCounted(t *testing.T, s *dnsseeder, n uint32, unknownBefore, unknown ui
 // returned too.
 func TestUpdateDNSHeights(t *testing.T) {
 	config.dns = make(map[string][]dns.RR)
-	s := &dnsseeder{dnsHost: "height-test.example.org", ttl: 60, port: 8333,
-		maxSize: 100, theList: make(map[string]*node)}
+	s := &dnsseeder{names: []dnsName{{host: "height-test.example.org"}}, ttl: 60,
+		port: 8333, maxSize: 100, theList: make(map[string]*node)}
 
 	nodes := []struct {
 		ip     string
@@ -278,4 +279,66 @@ func TestHandleDNSZones(t *testing.T) {
 		}
 	}
 	waitCounted(t, s, 3, unknown, 4)
+}
+
+// TestUpdateDNSNames ensures each dns name of a seeder returns the good nodes
+// that pass its filters, from the one crawl of the network, which marks a node
+// good whatever its services.
+func TestUpdateDNSNames(t *testing.T) {
+	config.dns = make(map[string][]dns.RR)
+	const (
+		all   = "names-test.example.org"
+		x105  = "x105.names-test.example.org"
+		x101  = "x101.names-test.example.org"
+		bloom = wire.SFNodeBloom
+		cf    = wire.SFNodeCF
+		full  = wire.SFNodeNetwork
+	)
+	s := &dnsseeder{ttl: 60, port: 8333, pver: 70016, maxSize: 100,
+		theList: make(map[string]*node),
+		names: []dnsName{
+			{host: all, serviceFilter: []wire.ServiceFlag{full}},
+			{host: x105, serviceFilter: []wire.ServiceFlag{full, cf, bloom}},
+			{host: x101, serviceFilter: []wire.ServiceFlag{full, cf},
+				userAgentFilter: []string{"bchd:0.22."}},
+		}}
+
+	nodes := []struct {
+		ip       string
+		services wire.ServiceFlag
+		ua       string
+		names    []string
+	}{
+		{"10.0.0.1", full | bloom, "/Bitcoin Cash Node:29.2.0/", []string{all}},
+		{"10.0.0.2", full | cf, "/bchd:0.22.4/", []string{all, x101}},
+		{"10.0.0.3", full | cf | bloom, "/bchd:0.22.4/", []string{all, x105, x101}},
+		{"10.0.0.4", full | cf | bloom, "/bchd:0.21.1/", []string{all, x105}},
+		// A pruned node isn't a full node.
+		{"10.0.0.5", bloom, "/Bitcoin Cash Node:29.2.0/", nil},
+	}
+	for _, n := range nodes {
+		if !s.addNa(wire.NewNetAddressIPPort(net.ParseIP(n.ip), 8333, 0)) {
+			t.Fatalf("%s not added", n.ip)
+		}
+		s.processResult(&result{node: net.JoinHostPort(n.ip, "8333"),
+			version: 70016, services: n.services, strVersion: n.ua, lastBlock: 1000})
+	}
+	for k, nd := range s.theList {
+		if nd.Status != statusCG {
+			t.Errorf("%s: %s, want statusCG", k, status2str(nd.Status))
+		}
+	}
+	updateDNS(s)
+
+	for _, name := range []string{all, x105, x101} {
+		served := make(map[string]bool)
+		for _, rr := range config.dns[name+".A"] {
+			served[rr.(*dns.A).A.String()] = true
+		}
+		for _, n := range nodes {
+			if want := slices.Contains(n.names, name); served[n.ip] != want {
+				t.Errorf("%s: %s served %v, want %v", name, n.ip, served[n.ip], want)
+			}
+		}
+	}
 }

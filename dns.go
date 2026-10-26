@@ -38,6 +38,26 @@ func (s *dnsseeder) medianHeight() int32 {
 // updateDNS updates the current slices of dns.RR so incoming requests get a
 // fast answer
 func updateDNS(s *dnsseeder) {
+	for i := range s.names {
+		updateNameDNS(s, &s.names[i])
+	}
+
+	if config.stats {
+		s.counts.mtx.RLock()
+		log.Printf("%s - DNS counts: v4std: %v v4non: %v v6std: %v v6non: %v total: %v\n",
+			s.name,
+			s.counts.DNSCounts[dnsV4Std],
+			s.counts.DNSCounts[dnsV4Non],
+			s.counts.DNSCounts[dnsV6Std],
+			s.counts.DNSCounts[dnsV6Non],
+			s.counts.DNSCounts[dnsV4Std]+s.counts.DNSCounts[dnsV4Non]+s.counts.DNSCounts[dnsV6Std]+s.counts.DNSCounts[dnsV6Non])
+
+		s.counts.mtx.RUnlock()
+	}
+}
+
+// updateNameDNS updates the slices of dns.RR of one of the seeder's names
+func updateNameDNS(s *dnsseeder, n *dnsName) {
 
 	var rr4std, rr4non, rr6std, rr6non []dns.RR
 
@@ -65,10 +85,15 @@ func updateDNS(s *dnsseeder) {
 				continue
 			}
 
+			// leave out nodes the name's filters don't return
+			if !n.returns(nd) {
+				continue
+			}
+
 			if t == dnsV4Std || t == dnsV4Non {
 				if t == dnsV4Std && nd.DNSType == dnsV4Std {
 					r := &dns.A{
-						Hdr: dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
+						Hdr: dns.RR_Header{Name: n.host + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
 						A:   nd.NA.IP,
 					}
 					rr4std = append(rr4std, r)
@@ -78,13 +103,13 @@ func updateDNS(s *dnsseeder) {
 				// if the node is using a non standard port then add the encoded port info to DNS
 				if t == dnsV4Non && nd.DNSType == dnsV4Non {
 					r := &dns.A{
-						Hdr: dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
+						Hdr: dns.RR_Header{Name: "nonstd." + n.host + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
 						A:   nd.NA.IP,
 					}
 					rr4non = append(rr4non, r)
 					numRR++
 					r = &dns.A{
-						Hdr: dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
+						Hdr: dns.RR_Header{Name: "nonstd." + n.host + ".", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: s.ttl},
 						A:   nd.NonstdIP,
 					}
 					rr4non = append(rr4non, r)
@@ -94,7 +119,7 @@ func updateDNS(s *dnsseeder) {
 			if t == dnsV6Std || t == dnsV6Non {
 				if t == dnsV6Std && nd.DNSType == dnsV6Std {
 					r := &dns.AAAA{
-						Hdr:  dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
+						Hdr:  dns.RR_Header{Name: n.host + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
 						AAAA: nd.NA.IP,
 					}
 					rr6std = append(rr6std, r)
@@ -103,13 +128,13 @@ func updateDNS(s *dnsseeder) {
 				// if the node is using a non standard port then add the encoded port info to DNS
 				if t == dnsV6Non && nd.DNSType == dnsV6Non {
 					r := &dns.AAAA{
-						Hdr:  dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
+						Hdr:  dns.RR_Header{Name: "nonstd." + n.host + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
 						AAAA: nd.NA.IP,
 					}
 					rr6non = append(rr6non, r)
 					numRR++
 					r = &dns.AAAA{
-						Hdr:  dns.RR_Header{Name: "nonstd." + s.dnsHost + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
+						Hdr:  dns.RR_Header{Name: "nonstd." + n.host + ".", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: s.ttl},
 						AAAA: nd.NonstdIP,
 					}
 					rr6non = append(rr6non, r)
@@ -129,26 +154,26 @@ func updateDNS(s *dnsseeder) {
 	for t := range []int{dnsV4Std, dnsV4Non, dnsV6Std, dnsV6Non} {
 		switch t {
 		case dnsV4Std:
-			config.dns[s.dnsHost+".A"] = rr4std
+			config.dns[n.host+".A"] = rr4std
 		case dnsV4Non:
-			config.dns["nonstd."+s.dnsHost+".A"] = rr4non
+			config.dns["nonstd."+n.host+".A"] = rr4non
 		case dnsV6Std:
-			config.dns[s.dnsHost+".AAAA"] = rr6std
+			config.dns[n.host+".AAAA"] = rr6std
 		case dnsV6Non:
-			config.dns["nonstd."+s.dnsHost+".AAAA"] = rr6non
+			config.dns["nonstd."+n.host+".AAAA"] = rr6non
 		}
 	}
 
 	// Add NS and SOA answers
 	r := &dns.NS{
-		Hdr: dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 40000},
+		Hdr: dns.RR_Header{Name: n.host + ".", Rrtype: dns.TypeNS, Class: dns.ClassINET, Ttl: 40000},
 		Ns:  s.nameServer + ".",
 	}
 
-	config.dns[s.dnsHost+".NS"] = []dns.RR{r}
+	config.dns[n.host+".NS"] = []dns.RR{r}
 
 	r2 := &dns.SOA{
-		Hdr:     dns.RR_Header{Name: s.dnsHost + ".", Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 40000},
+		Hdr:     dns.RR_Header{Name: n.host + ".", Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 40000},
 		Ns:      s.nameServer + ".",
 		Mbox:    s.mbox + ".",
 		Refresh: 604800,
@@ -157,33 +182,24 @@ func updateDNS(s *dnsseeder) {
 		Minttl:  604800,
 		Serial:  uint32(time.Now().Unix()),
 	}
-	config.dns[s.dnsHost+".SOA"] = []dns.RR{r2}
+	config.dns[n.host+".SOA"] = []dns.RR{r2}
 
 	config.dnsmtx.Unlock()
 
 	if config.stats {
-		s.counts.mtx.RLock()
-		log.Printf("%s - DNS available: v4std: %v v4non: %v v6std: %v v6non: %v\n", s.name, len(rr4std), len(rr4non), len(rr6std), len(rr6non))
-		log.Printf("%s - DNS counts: v4std: %v v4non: %v v6std: %v v6non: %v total: %v\n",
-			s.name,
-			s.counts.DNSCounts[dnsV4Std],
-			s.counts.DNSCounts[dnsV4Non],
-			s.counts.DNSCounts[dnsV6Std],
-			s.counts.DNSCounts[dnsV6Non],
-			s.counts.DNSCounts[dnsV4Std]+s.counts.DNSCounts[dnsV4Non]+s.counts.DNSCounts[dnsV6Std]+s.counts.DNSCounts[dnsV6Non])
-
-		s.counts.mtx.RUnlock()
-
+		log.Printf("%s - %s - DNS available: v4std: %v v4non: %v v6std: %v v6non: %v\n", s.name, n.host, len(rr4std), len(rr4non), len(rr6std), len(rr6non))
 	}
 }
 
-// inZone returns true if name, in lower case and ending in a dot, is the DNS
-// name of a seeder or a name under one.
+// inZone returns true if name, in lower case and ending in a dot, is one of
+// the DNS names of a seeder or a name under one.
 func inZone(name string) bool {
 	for _, s := range config.seeders {
-		host := s.dnsHost + "."
-		if name == host || strings.HasSuffix(name, "."+host) {
-			return true
+		for _, n := range s.names {
+			host := n.host + "."
+			if name == host || strings.HasSuffix(name, "."+host) {
+				return true
+			}
 		}
 	}
 	return false

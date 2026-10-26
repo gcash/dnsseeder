@@ -29,6 +29,16 @@ type JNetwork struct {
 	Seeder3         string
 	ServiceFilter   []string
 	UserAgentFilter []string
+	DNSNames        []JDNSName
+}
+
+// JDNSName is one of several dns names a network file serves, with the filters
+// of the nodes it returns.  A network file sets either DNSNames, or DNSName
+// and, for it, ServiceFilter and UserAgentFilter.
+type JDNSName struct {
+	Name            string
+	ServiceFilter   []string
+	UserAgentFilter []string
 }
 
 func createNetFile() {
@@ -90,13 +100,16 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 
 	}
 
-	if jnw.DNSName == "" {
-		return nil, fmt.Errorf("no DNS hostname supplied")
-	}
-
-	if jnw.NameServer == "" {
-		log.Printf("%s: warning: NameServer is not set, so the NS and SOA records for %s name \".\" instead of this server\n",
-			jnw.Name, jnw.DNSName)
+	// the names to serve: DNSNames, or DNSName with the filters
+	jnames := jnw.DNSNames
+	if len(jnames) == 0 {
+		jnames = []JDNSName{{
+			Name:            jnw.DNSName,
+			ServiceFilter:   jnw.ServiceFilter,
+			UserAgentFilter: jnw.UserAgentFilter,
+		}}
+	} else if jnw.DNSName != "" || len(jnw.ServiceFilter) > 0 || len(jnw.UserAgentFilter) > 0 {
+		return nil, fmt.Errorf("DNSNames is set with DNSName or its filters")
 	}
 
 	// init the seeder
@@ -107,9 +120,27 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 	seeder.ttl = jnw.TTL
 	seeder.name = jnw.Name
 	seeder.desc = jnw.Desc
-	seeder.dnsHost = strings.ToLower(jnw.DNSName)
+	for _, jn := range jnames {
+		if jn.Name == "" {
+			return nil, fmt.Errorf("no DNS hostname supplied")
+		}
+		seeder.names = append(seeder.names, dnsName{
+			host:            strings.ToLower(jn.Name),
+			serviceFilter:   parseServices(jn.ServiceFilter),
+			userAgentFilter: jn.UserAgentFilter,
+		})
+	}
 	seeder.nameServer = jnw.NameServer
 	seeder.mbox = jnw.Mbox
+
+	if jnw.NameServer == "" {
+		var hosts []string
+		for _, n := range seeder.names {
+			hosts = append(hosts, n.host)
+		}
+		log.Printf("%s: warning: NameServer is not set, so the NS and SOA records for %s name \".\" instead of this server\n",
+			jnw.Name, strings.Join(hosts, ", "))
+	}
 
 	// conver the network magic number to a Uint32
 	t1, err := strconv.ParseUint(jnw.ID, 0, 32)
@@ -133,27 +164,6 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 	if jnw.Seeder3 != "" {
 		seeder.seeders = append(seeder.seeders, jnw.Seeder3)
 	}
-
-	// Parse service flags
-	var services []wire.ServiceFlag
-	for _, service := range jnw.ServiceFilter {
-		switch strings.ToLower(service) {
-		case "nodenetwork":
-			services = append(services, wire.SFNodeNetwork)
-		case "nodegetutxo":
-			services = append(services, wire.SFNodeGetUTXO)
-		case "nodebloom":
-			services = append(services, wire.SFNodeBloom)
-		case "nodexthin":
-			services = append(services, wire.SFNodeXthin)
-		case "nodecf":
-			services = append(services, wire.SFNodeCF)
-		case "nodebitcoincash":
-			services = append(services, wire.SFNodeBitcoinCash)
-		}
-	}
-	seeder.serviceFilter = services
-	seeder.userAgentFilter = jnw.UserAgentFilter
 
 	// add some checks to the start & delay values to keep them sane
 	seeder.maxStart = []uint32{20, 20, 20, 30}
@@ -190,4 +200,27 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 	}
 
 	return seeder, nil
+}
+
+// parseServices returns the service flags of a service filter's names, and
+// ignores names it doesn't know.
+func parseServices(names []string) []wire.ServiceFlag {
+	var services []wire.ServiceFlag
+	for _, service := range names {
+		switch strings.ToLower(service) {
+		case "nodenetwork":
+			services = append(services, wire.SFNodeNetwork)
+		case "nodegetutxo":
+			services = append(services, wire.SFNodeGetUTXO)
+		case "nodebloom":
+			services = append(services, wire.SFNodeBloom)
+		case "nodexthin":
+			services = append(services, wire.SFNodeXthin)
+		case "nodecf":
+			services = append(services, wire.SFNodeCF)
+		case "nodebitcoincash":
+			services = append(services, wire.SFNodeBitcoinCash)
+		}
+	}
+	return services
 }

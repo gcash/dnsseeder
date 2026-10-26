@@ -116,3 +116,52 @@ func TestProcessResultVersion(t *testing.T) {
 		}
 	}
 }
+
+// TestAuditKeepsFilteredNodes ensures the audit, which cycles out the good
+// nodes beyond its goal, keeps the ones a filtered name returns, which are few
+// among the good nodes of a network, so they don't drop out of its answers.
+func TestAuditKeepsFilteredNodes(t *testing.T) {
+	config.dataDir = t.TempDir()
+	config.seeders = make(map[string]*dnsseeder)
+	s, err := initNetwork(JNetwork{Name: "Audit Test", ID: "0xe8f3e1e3", Port: 8333,
+		NameServer: "ns.example.org",
+		DNSNames: []JDNSName{
+			{Name: "audit-test.example.org", ServiceFilter: []string{"NodeNetwork"}},
+			{Name: "x101.audit-test.example.org", ServiceFilter: []string{"NodeNetwork", "NodeCF"}},
+		}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A goal of one good node.
+	s.delay[statusCG], s.maxStart[statusCG] = crawlDelay, 2
+
+	for i := 1; i <= 20; i++ {
+		if !s.addNa(wire.NewNetAddressIPPort(net.IPv4(10, 0, 0, byte(i)), 8333, 0)) {
+			t.Fatalf("node %d not added", i)
+		}
+	}
+	cfNodes := 0
+	for _, nd := range s.theList {
+		nd.Status, nd.Services = statusCG, wire.SFNodeNetwork
+		if cfNodes < 3 {
+			nd.Services |= wire.SFNodeCF
+			cfNodes++
+		}
+	}
+	s.auditNodes()
+
+	cf, other := 0, 0
+	for _, nd := range s.theList {
+		if nd.Services&wire.SFNodeCF != 0 {
+			cf++
+		} else {
+			other++
+		}
+	}
+	if cf != 3 {
+		t.Errorf("%d of the 3 compact filter nodes kept", cf)
+	}
+	if other > 1 {
+		t.Errorf("%d other good nodes kept, want at most 1", other)
+	}
+}
