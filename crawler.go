@@ -46,7 +46,7 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	onAddr := make(chan *wire.MsgAddr)
 	peerCfg := &peer.Config{
 		UserAgentName:    "dnsseeder", // User agent name to advertise.
-		UserAgentVersion: "1.5.2",     // User agent version to advertise.
+		UserAgentVersion: "1.5.3",     // User agent version to advertise.
 		Services:         0,
 		Listeners: peer.MessageListeners{
 			OnAddr: func(_ *peer.Peer, msg *wire.MsgAddr) {
@@ -104,10 +104,11 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	// if we get this far and if the seeder is full then don't ask for addresses. This will reduce bandwidth usage while still
 	// confirming that we can connect to the remote node
 	s.mtx.RLock()
-	if len(s.theList) > s.maxSize {
+	full := len(s.theList) > s.maxSize
+	s.mtx.RUnlock()
+	if full {
 		return nil, nil
 	}
-	s.mtx.RUnlock()
 
 	// send getaddr command
 	p.QueueMessage(wire.NewMsgGetAddr(), nil)
