@@ -116,16 +116,21 @@ func goroutinesIn(fn string) int {
 	return n
 }
 
+// testAddrMsg returns an addr message with the addresses of ips.
+func testAddrMsg(ips ...net.IP) *wire.MsgAddr {
+	msg := wire.NewMsgAddr()
+	for _, ip := range ips {
+		_ = msg.AddAddress(wire.NewNetAddressIPPort(ip, 8333, wire.SFNodeNetwork))
+	}
+	return msg
+}
+
 // TestCrawlExtraAddr ensures an addr message that arrives after the crawl
 // took the one it waits for doesn't block the crawled node's goroutine in the
 // crawl's listener, where it then stayed for good.
 func TestCrawlExtraAddr(t *testing.T) {
 	addr := fakeNode(t, func(conn net.Conn, _ *wire.MsgVersion) {
-		msg := wire.NewMsgAddr()
-		na := wire.NewNetAddressIPPort(net.IPv4(1, 2, 3, 4), 8333, wire.SFNodeNetwork)
-		if err := msg.AddAddress(na); err != nil {
-			return
-		}
+		msg := testAddrMsg(net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8))
 		for i := 0; i < 2; i++ {
 			if err := wire.WriteMessage(conn, msg, wire.ProtocolVersion, wire.MainNet); err != nil {
 				return
@@ -152,5 +157,38 @@ func TestCrawlExtraAddr(t *testing.T) {
 				"after 100 crawls", n)
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// TestCrawlCollectsAddr ensures a crawl collects the addresses of a node's
+// addr messages until one has more than one address, as BCHN sends its own
+// address first and its answer to getaddr later.  The crawl kept only the
+// first message, the node's own address.
+func TestCrawlCollectsAddr(t *testing.T) {
+	addr := fakeNode(t, func(conn net.Conn, _ *wire.MsgVersion) {
+		msgs := []*wire.MsgAddr{
+			testAddrMsg(net.IPv4(127, 0, 0, 1)),
+			testAddrMsg(net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8),
+				net.IPv4(9, 10, 11, 12)),
+		}
+		for _, msg := range msgs {
+			if err := wire.WriteMessage(conn, msg, wire.ProtocolVersion, wire.MainNet); err != nil {
+				return
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	})
+	s := &dnsseeder{name: "Test", theList: map[string]*node{}, maxSize: 100}
+
+	start := time.Now()
+	nas, cerr := crawlIP(s, &result{node: addr})
+	if cerr != nil {
+		t.Fatal(cerr)
+	}
+	if len(nas) != 4 {
+		t.Errorf("crawl returned %d addresses, want 4", len(nas))
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Errorf("crawl took %v", elapsed)
 	}
 }

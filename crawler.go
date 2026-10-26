@@ -45,7 +45,7 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	// The listeners run on the peer's goroutine and must not block it: a
 	// message that arrives once the crawl no longer waits for it is dropped.
 	verack := make(chan struct{}, 1)
-	onAddr := make(chan *wire.MsgAddr, 1)
+	onAddr := make(chan *wire.MsgAddr, 16)
 	peerCfg := &peer.Config{
 		UserAgentName:    "dnsseeder", // User agent name to advertise.
 		UserAgentVersion: "1.5.3",     // User agent version to advertise.
@@ -123,11 +123,22 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	// send getaddr command
 	p.QueueMessage(wire.NewMsgGetAddr(), nil)
 
-	addrMsg := new(wire.MsgAddr)
-	select {
-	case addrMsg = <-onAddr:
-	case <-time.After(time.Second * 6):
+	// BCHN sends its own address right after the handshake, and its answer
+	// to getaddr, up to 1000 addresses, on a later address broadcast: up
+	// to 46 seconds later in a probe of BCHN nodes, or not at all.  So
+	// collect the addresses of every addr message until one with more than
+	// one address arrives, for up to a minute.
+	var addrs []*wire.NetAddress
+	timeout := time.After(time.Minute)
+	for {
+		select {
+		case msg := <-onAddr:
+			addrs = append(addrs, msg.AddrList...)
+			if len(msg.AddrList) > 1 {
+				return addrs, nil
+			}
+		case <-timeout:
+			return addrs, nil
+		}
 	}
-
-	return addrMsg.AddrList, nil
 }
