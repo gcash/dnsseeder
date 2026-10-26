@@ -181,6 +181,11 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 		if err = jsonParser.Decode(&seeder.theList); err != nil {
 			log.Printf("Error decoding cache file: %v", err)
 		}
+		// no crawl survives a restart, and a node the cache caught
+		// mid-crawl would otherwise never be crawled again
+		for _, nd := range seeder.theList {
+			nd.CrawlActive = false
+		}
 		log.Printf("Loaded %d nodes from %s cache\n", len(seeder.theList), seeder.name)
 	}
 

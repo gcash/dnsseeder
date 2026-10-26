@@ -135,6 +135,10 @@ func (s *dnsseeder) runSeeder(done <-chan struct{}, wg *sync.WaitGroup) {
 	// receive the results from the crawl goroutines
 	resultsChan := make(chan *result)
 
+	// serve the good nodes of the cached list right away, instead of none
+	// until the first dns update
+	s.loadDNS()
+
 	// load data from other seeders so we can start crawling nodes
 	s.initSeeder()
 
@@ -170,6 +174,8 @@ func (s *dnsseeder) runSeeder(done <-chan struct{}, wg *sync.WaitGroup) {
 			dowhile = false
 		}
 	}
+	// save the list, so the next start serves and crawls from it
+	s.dumpCache()
 	fmt.Printf("shutting down seeder: %s\n", s.name)
 	// end the goroutine & defer will call wg.Done()
 }
@@ -417,15 +423,35 @@ func (s *dnsseeder) addNa(nNa *wire.NetAddress) bool {
 	return true
 }
 
+// dumpCache saves the list to the seeder's cache file.  It writes a temporary
+// file and renames it over the cache, so the cache is never left part written.
 func (s *dnsseeder) dumpCache() {
 	s.mtx.RLock()
-	defer s.mtx.RUnlock()
-	cachePath := path.Join(config.dataDir, fmt.Sprintf("%s.json", s.name))
 	out, err := json.MarshalIndent(s.theList, "", "    ")
+	s.mtx.RUnlock()
 	if err != nil {
 		log.Printf("error marshalling cache: %s\n", err)
+		return
 	}
-	if err := os.WriteFile(cachePath, out, os.ModePerm); err != nil {
+
+	cachePath := path.Join(config.dataDir, fmt.Sprintf("%s.json", s.name))
+	f, err := os.CreateTemp(config.dataDir, fmt.Sprintf("%s.json.*", s.name))
+	if err != nil {
+		log.Printf("error writing cache: %s\n", err)
+		return
+	}
+	_, err = f.Write(out)
+	if err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(f.Name(), cachePath)
+	}
+	if err != nil {
+		_ = os.Remove(f.Name())
 		log.Printf("error writing cache: %s\n", err)
 	}
 }
