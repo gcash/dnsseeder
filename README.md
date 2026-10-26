@@ -66,7 +66,7 @@ If you want to seed peers on `seed.example.com`, say, and this software is runni
 
 Set `NameServer` in the network config file to the host the `NS` record points to, `vps.example.com` here. The seeder answers queries for the `NS` and `SOA` records of its DNS name with it, and with `.` when it is not set. `Mbox`, optional, is the zone administrator's email address for the `SOA` record, with the `@` replaced by a period, such as `admin.example.com`; without it the record holds `.`.
 
-`ServiceFilter` and `UserAgentFilter` limit the nodes a seeder returns to those that advertise every listed service and whose user agent contains one of the listed strings, ignoring case. The `x101` configs return bchd nodes that serve compact filters, with `"UserAgentFilter": ["bchd:0.22."]`, which matches every 0.22 release.
+`Pver` is the lowest protocol version a node must report to be returned; the bchd.cash configs require 70016. `ServiceFilter` and `UserAgentFilter` limit the nodes a seeder returns to those that advertise every listed service and whose user agent contains one of the listed strings, ignoring case. The `x101` configs return bchd nodes that serve compact filters, with `"UserAgentFilter": ["bchd:0.22."]`, which matches every 0.22 release.
 
 Clients ask a seed's name for full nodes, and `x<flags>.<name>` for nodes with the services in the hexadecimal `<flags>`; bchd, for one, takes every address it gets from the name for a full node. So a seeder on a plain name needs at least `"ServiceFilter": ["NodeNetwork"]`, and one on an `x<flags>` name every service in its flags, as the `x101` configs have `NodeNetwork` (`1`) and `NodeCF` (`100`).
 

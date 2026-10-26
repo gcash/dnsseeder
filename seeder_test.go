@@ -88,3 +88,31 @@ func TestAddnNa(t *testing.T) {
 	}
 
 }
+
+// TestProcessResultVersion ensures a seeder returns only nodes that report at
+// least its minimum protocol version, Pver, which it ignored.
+func TestProcessResultVersion(t *testing.T) {
+	s := &dnsseeder{port: 8333, pver: 70016, maxSize: 100}
+	s.theList = make(map[string]*node)
+	if !s.addNa(wire.NewNetAddressIPPort(net.IPv4(1, 2, 3, 4), 8333, 0)) {
+		t.Fatal("node not added")
+	}
+	key := net.JoinHostPort("1.2.3.4", "8333")
+
+	tests := []struct {
+		version int32
+		status  uint32
+	}{
+		{70016, statusCG},
+		{80003, statusCG},
+		{70015, statusWG},
+		{-1, statusWG},
+	}
+	for _, test := range tests {
+		s.processResult(&result{node: key, version: test.version})
+		if got := s.theList[key].Status; got != test.status {
+			t.Errorf("version %d: %s, want %s", test.version,
+				status2str(got), status2str(test.status))
+		}
+	}
+}

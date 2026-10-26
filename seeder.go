@@ -63,7 +63,7 @@ type dnsseeder struct {
 	maxStart        []uint32           // max number of goroutines to start each run for each status type
 	delay           []int64            // number of seconds to wait before we connect to a known client for each status
 	counts          NodeCounts         // structure to hold stats for this seeder
-	pver            uint32             // minimum block height for the seeder
+	pver            uint32             // minimum protocol version a node must speak to be returned
 	ttl             uint32             // DNS TTL to use for this seeder
 	maxSize         int                // max number of clients before we start restricting new entries
 	port            uint16             // default network port this seeder uses
@@ -302,7 +302,10 @@ func (s *dnsseeder) processResult(r *result) {
 		}
 	}
 
-	if matchesServiceFilter && s.matchesUserAgentFilter(r.strVersion) {
+	// compare as int64, so a negative version isn't taken for a huge one
+	matchesVersion := int64(r.version) >= int64(s.pver)
+
+	if matchesServiceFilter && matchesVersion && s.matchesUserAgentFilter(r.strVersion) {
 		nd.Status = statusCG
 	} else {
 		// We can set nodes that don't meet the filters to was good. This will ensure they stick around for a little
