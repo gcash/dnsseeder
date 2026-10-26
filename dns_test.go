@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -56,6 +57,7 @@ func TestHandleDNSCase(t *testing.T) {
 	}
 	updateDNS(s)
 	addr := startDNSServer(t)
+	unknown := atomic.LoadUint64(&config.dnsUnknown)
 
 	names := []string{"case-test.example.org.", "CASE-TEST.EXAMPLE.ORG.",
 		"cAsE-tEsT.eXaMpLe.OrG."}
@@ -80,21 +82,30 @@ func TestHandleDNSCase(t *testing.T) {
 		}
 	}
 
-	// The requests are counted in goroutines.
-	want := uint32(len(names) * len(qtypes))
+	waitCounted(t, s, uint32(len(names)*len(qtypes)), unknown, 0)
+}
+
+// waitCounted waits until the server has counted n requests for the seeder s,
+// and unknown more for no seeder than unknownBefore.  It counts each request
+// in a goroutine that reads the seeders, which the next test replaces.
+func waitCounted(t *testing.T, s *dnsseeder, n uint32, unknownBefore, unknown uint64) {
+	t.Helper()
+
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		var got uint32
 		s.counts.mtx.RLock()
-		for _, n := range s.counts.DNSCounts {
-			got += n
+		for _, c := range s.counts.DNSCounts {
+			got += c
 		}
 		s.counts.mtx.RUnlock()
-		if got == want {
-			break
+		gotUnknown := atomic.LoadUint64(&config.dnsUnknown) - unknownBefore
+		if got == n && gotUnknown == unknown {
+			return
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("%d of %d requests counted", got, want)
+			t.Fatalf("%d of %d requests counted for the seeder, %d of %d "+
+				"for none", got, n, gotUnknown, unknown)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -147,22 +158,48 @@ func TestUpdateDNSHeights(t *testing.T) {
 	}
 }
 
-// TestHandleDNSSize ensures an answer of 25 addresses fits the 512 bytes of a
-// UDP reply without EDNS.  Uncompressed it took 1,068.
-func TestHandleDNSSize(t *testing.T) {
+// testSeeder makes a mainnet seeder for the DNS name name the server's only
+// one, with a good node at height 1000 for each address in ips, and builds its
+// records.
+func testSeeder(t *testing.T, name string, ips ...net.IP) *dnsseeder {
+	t.Helper()
+
+	config.dataDir = t.TempDir()
+	config.seeders = make(map[string]*dnsseeder)
 	config.dns = make(map[string][]dns.RR)
-	s := &dnsseeder{dnsHost: "compress-test.example.org", ttl: 60, port: 8333,
-		maxSize: 100, theList: make(map[string]*node)}
-	for i := 1; i <= 30; i++ {
-		if !s.addNa(wire.NewNetAddressIPPort(net.IPv4(10, 0, 0, byte(i)), 8333, 0)) {
-			t.Fatalf("node %d not added", i)
+	s, err := initNetwork(JNetwork{
+		Name:       name,
+		ID:         "0xe8f3e1e3",
+		Port:       8333,
+		DNSName:    name,
+		NameServer: "ns.example.org",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.seeders[s.name] = s
+	for _, ip := range ips {
+		if !s.addNa(wire.NewNetAddressIPPort(ip, 8333, 0)) {
+			t.Fatalf("%s not added", ip)
 		}
 	}
 	for _, nd := range s.theList {
 		nd.Status, nd.LastBlock = statusCG, 1000
 	}
 	updateDNS(s)
+	return s
+}
+
+// TestHandleDNSSize ensures an answer of 25 addresses fits the 512 bytes of a
+// UDP reply without EDNS.  Uncompressed it took 1,068.
+func TestHandleDNSSize(t *testing.T) {
+	var ips []net.IP
+	for i := 1; i <= 30; i++ {
+		ips = append(ips, net.IPv4(10, 0, 0, byte(i)))
+	}
+	s := testSeeder(t, "compress-test.example.org", ips...)
 	addr := startDNSServer(t)
+	unknown := atomic.LoadUint64(&config.dnsUnknown)
 
 	q := new(dns.Msg)
 	q.SetQuestion("compress-test.example.org.", dns.TypeA)
@@ -198,4 +235,47 @@ func TestHandleDNSSize(t *testing.T) {
 		t.Errorf("answer of %d bytes", n)
 	}
 	t.Logf("answer of %d addresses in %d bytes", len(reply.Answer), n)
+	waitCounted(t, s, 1, unknown, 0)
+}
+
+// TestHandleDNSZones ensures the server answers for the names of its seeders
+// and the names under them, and refuses other names, which it answered as if
+// it had authority for them.
+func TestHandleDNSZones(t *testing.T) {
+	s := testSeeder(t, "zone-test.example.org", net.IPv4(10, 0, 0, 1))
+	addr := startDNSServer(t)
+	unknown := atomic.LoadUint64(&config.dnsUnknown)
+
+	tests := []struct {
+		name    string
+		rcode   int
+		answers int
+	}{
+		{"zone-test.example.org.", dns.RcodeSuccess, 1},
+		{"ZONE-test.example.org.", dns.RcodeSuccess, 1},
+		{"nonstd.zone-test.example.org.", dns.RcodeSuccess, 0},
+		// The seeder counts the requests above as its own, and the rest
+		// as unknown.
+		{"x5.zone-test.example.org.", dns.RcodeSuccess, 0},
+		{"example.org.", dns.RcodeRefused, 0},
+		{"other-zone-test.example.org.", dns.RcodeRefused, 0},
+		{"google.com.", dns.RcodeRefused, 0},
+	}
+	for _, test := range tests {
+		q := new(dns.Msg)
+		q.SetQuestion(test.name, dns.TypeA)
+		reply, err := dns.Exchange(q, addr)
+		if err != nil {
+			t.Fatalf("%s: %v", test.name, err)
+		}
+		if reply.Rcode != test.rcode || len(reply.Answer) != test.answers {
+			t.Errorf("%s: %s with %d answers, want %s with %d", test.name,
+				dns.RcodeToString[reply.Rcode], len(reply.Answer),
+				dns.RcodeToString[test.rcode], test.answers)
+		}
+		if reply.Authoritative != (test.rcode == dns.RcodeSuccess) {
+			t.Errorf("%s: authoritative %v", test.name, reply.Authoritative)
+		}
+	}
+	waitCounted(t, s, 3, unknown, 4)
 }

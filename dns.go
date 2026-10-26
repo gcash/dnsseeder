@@ -177,6 +177,18 @@ func updateDNS(s *dnsseeder) {
 	}
 }
 
+// inZone returns true if name, in lower case and ending in a dot, is the DNS
+// name of a seeder or a name under one.
+func inZone(name string) bool {
+	for _, s := range config.seeders {
+		host := s.dnsHost + "."
+		if name == host || strings.HasSuffix(name, "."+host) {
+			return true
+		}
+	}
+	return false
+}
+
 // handleDNS processes a DNS request from remote client and returns
 // a list of current ip addresses that the crawlers consider current.
 func handleDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -215,11 +227,18 @@ func handleDNS(w dns.ResponseWriter, r *dns.Msg) {
 	// name up in lower case, the case the records are stored in.
 	name := strings.ToLower(r.Question[0].Name)
 
-	config.dnsmtx.RLock()
-	// if the dns map does not have a key for the request it will return an empty slice
-	m.Answer = config.dns[name+qtype]
+	if inZone(name) {
+		config.dnsmtx.RLock()
+		// if the dns map does not have a key for the request it will return an empty slice
+		m.Answer = config.dns[name+qtype]
 
-	config.dnsmtx.RUnlock()
+		config.dnsmtx.RUnlock()
+	} else {
+		// refuse a name outside the seeders' zones, which the server has no
+		// authority for, instead of answering as if it had
+		m.Authoritative = false
+		m.Rcode = dns.RcodeRefused
+	}
 
 	if err := w.WriteMsg(m); err != nil {
 		log.Printf("error writing DNS response: %v\n", err)
