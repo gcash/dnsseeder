@@ -86,7 +86,9 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	}
 
 	// Establish the connection to the peer address and mark it connected.
-	conn, err := net.Dial("tcp", p.Addr())
+	// Give up after 5 seconds, BCHN's default connect timeout, instead of
+	// when the system does, after about two minutes on Linux.
+	conn, err := net.DialTimeout("tcp", p.Addr(), time.Second*5)
 	if err != nil {
 		return nil, &crawlError{"net.Dial: error", err}
 	}
