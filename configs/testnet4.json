@@ -9,6 +9,7 @@
   "Seeder1": "testnet4-seed-bch.toom.im",
   "Seeder2": "seed.tbch4.loping.net",
   "Seeder3": "testnet4-seed.flowee.cash",
+  "InitialIPs": ["35.208.255.10"],
   "DNSNames": [
     {"Name": "testnet4-seed.bchd.cash", "ServiceFilter": ["NodeNetwork"]},
     {"Name": "x105.testnet4-seed.bchd.cash", "ServiceFilter": ["NodeNetwork", "NodeCF", "NodeBloom"]},

@@ -9,6 +9,7 @@
   "Seeder1": "btccash-seeder.bitcoinunlimited.info",
   "Seeder2": "seed.bch.loping.net",
   "Seeder3": "bchseed.c3-soft.com",
+  "InitialIPs": ["35.208.165.58"],
   "DNSNames": [
     {"Name": "seed.bchd.cash", "ServiceFilter": ["NodeNetwork"]},
     {"Name": "x105.seed.bchd.cash", "ServiceFilter": ["NodeNetwork", "NodeCF", "NodeBloom"]},

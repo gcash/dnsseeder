@@ -62,7 +62,7 @@ func main() {
 
 	var j bool
 
-	config.version = "1.5.4"
+	config.version = "1.5.5"
 	config.uptime = time.Now()
 
 	flag.StringVar(&netfile, "netfile", "", "List of json config files to load")
