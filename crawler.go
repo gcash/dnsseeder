@@ -50,6 +50,9 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 		UserAgentName:    "dnsseeder", // User agent name to advertise.
 		UserAgentVersion: "1.5.3",     // User agent version to advertise.
 		Services:         0,
+		// A crawl only asks for addresses, so ask the node not to announce
+		// transactions.
+		DisableRelayTx: true,
 		Listeners: peer.MessageListeners{
 			OnAddr: func(_ *peer.Peer, msg *wire.MsgAddr) {
 				select {

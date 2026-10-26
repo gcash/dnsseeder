@@ -192,3 +192,23 @@ func TestCrawlCollectsAddr(t *testing.T) {
 		t.Errorf("crawl took %v", elapsed)
 	}
 }
+
+// TestCrawlNoRelay ensures a crawl asks the node not to announce transactions
+// to it, which it didn't, so nodes announced their transactions to crawls
+// that only ask for addresses.
+func TestCrawlNoRelay(t *testing.T) {
+	versions := make(chan *wire.MsgVersion, 1)
+	addr := fakeNode(t, func(conn net.Conn, version *wire.MsgVersion) {
+		versions <- version
+		msg := testAddrMsg(net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8))
+		_ = wire.WriteMessage(conn, msg, wire.ProtocolVersion, wire.MainNet)
+	})
+	s := &dnsseeder{name: "Test", theList: map[string]*node{}, maxSize: 100}
+
+	if _, cerr := crawlIP(s, &result{node: addr}); cerr != nil {
+		t.Fatal(cerr)
+	}
+	if version := <-versions; !version.DisableRelayTx {
+		t.Error("the crawl asked the node to announce transactions")
+	}
+}
