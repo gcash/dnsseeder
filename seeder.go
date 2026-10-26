@@ -141,7 +141,7 @@ func (s *dnsseeder) initSeeder() {
 		}
 		newRRs, err := net.LookupHost(aseeder)
 		if err != nil {
-			log.Printf("%s: unable to do initial lookup to seeder %s %v\n", s.name, aseeder, err)
+			errLog.Printf("%s: unable to do initial lookup to seeder %s %v\n", s.name, aseeder, err)
 			continue
 		}
 
@@ -166,9 +166,9 @@ func (s *dnsseeder) initSeeder() {
 	}
 
 	if len(s.theList) == 0 {
-		log.Printf("%s: Error: No ip addresses from seeders so I have nothing to crawl.\n", s.name)
+		errLog.Printf("%s: Error: No ip addresses from seeders so I have nothing to crawl.\n", s.name)
 		for _, v := range s.seeders {
-			log.Printf("%s: Seeder: %s\n", s.name, v)
+			errLog.Printf("%s: Seeder: %s\n", s.name, v)
 		}
 	}
 }
@@ -478,14 +478,14 @@ func (s *dnsseeder) dumpCache() {
 	out, err := json.MarshalIndent(s.theList, "", "    ")
 	s.mtx.RUnlock()
 	if err != nil {
-		log.Printf("error marshalling cache: %s\n", err)
+		errLog.Printf("error marshalling cache: %s\n", err)
 		return
 	}
 
 	file := cachePath(s.name)
 	f, err := os.CreateTemp(config.dataDir, path.Base(file)+".*")
 	if err != nil {
-		log.Printf("error writing cache: %s\n", err)
+		errLog.Printf("error writing cache: %s\n", err)
 		return
 	}
 	_, err = f.Write(out)
@@ -500,7 +500,7 @@ func (s *dnsseeder) dumpCache() {
 	}
 	if err != nil {
 		_ = os.Remove(f.Name())
-		log.Printf("error writing cache: %s\n", err)
+		errLog.Printf("error writing cache: %s\n", err)
 	}
 }
 
@@ -558,7 +558,7 @@ func (s *dnsseeder) auditNodes() {
 
 		if nd.CrawlActive {
 			if time.Now().Unix()-nd.CrawlStart.Unix() >= 300 {
-				log.Printf("warning - long running crawl > 5 minutes ====\n- %s status:rating:fails %v:%v:%v crawl start: %s last status: %s\n====\n",
+				errLog.Printf("warning - long running crawl > 5 minutes ====\n- %s status:rating:fails %v:%v:%v crawl start: %s last status: %s\n====\n",
 					k,
 					nd.Status,
 					nd.Rating,

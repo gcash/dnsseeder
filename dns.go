@@ -257,7 +257,7 @@ func handleDNS(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	if err := w.WriteMsg(m); err != nil {
-		log.Printf("error writing DNS response: %v\n", err)
+		errLog.Printf("error writing DNS response: %v\n", err)
 	}
 
 	if config.debug {
@@ -271,7 +271,7 @@ func handleDNS(w dns.ResponseWriter, r *dns.Msg) {
 func serve(net, port string) {
 	server := &dns.Server{Addr: ":" + port, Net: net, TsigSecret: nil}
 	if err := server.ListenAndServe(); err != nil {
-		log.Printf("Failed to setup the "+net+" server: %v\n", err)
+		errLog.Printf("Failed to setup the "+net+" server: %v\n", err)
 	}
 }
 

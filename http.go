@@ -26,7 +26,7 @@ func startHTTP(port string) {
 	// listen only on localhost
 	err := http.ListenAndServe("127.0.0.1:"+port, nil)
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		errLog.Fatal("ListenAndServe: ", err)
 	}
 
 }
@@ -73,7 +73,7 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 
 	t, err := template.New("records template").Parse(t2)
 	if err != nil {
-		log.Printf("error parsing records template %v\n", err)
+		errLog.Printf("error parsing records template %v\n", err)
 	}
 
 	writeHeader(w, r)
@@ -100,11 +100,11 @@ func dnsWebHandler(w http.ResponseWriter, r *http.Request) {
 			_, _ = fmt.Fprintf(w, "<p><center><b>%s</b></center></p>", table.title)
 			_, _ = fmt.Fprint(w, t1)
 			if err := t.Execute(w, table.std); err != nil {
-				log.Printf("error executing records template %v\n", err)
+				errLog.Printf("error executing records template %v\n", err)
 			}
 			_, _ = fmt.Fprint(w, t3)
 			if err := t.Execute(w, table.non); err != nil {
-				log.Printf("error executing records template %v\n", err)
+				errLog.Printf("error executing records template %v\n", err)
 			}
 			_, _ = fmt.Fprint(w, t4)
 		}
@@ -214,11 +214,11 @@ func statusHandler(w http.ResponseWriter, r *http.Request, status uint32) {
 		t := template.New("Status template")
 		t, err := t.Parse(st)
 		if err != nil {
-			log.Printf("error parsing status template %v\n", err)
+			errLog.Printf("error parsing status template %v\n", err)
 		}
 		err = t.Execute(w, ws)
 		if err != nil {
-			log.Printf("error executing status template %v\n", err)
+			errLog.Printf("error executing status template %v\n", err)
 		}
 
 	}
@@ -376,11 +376,11 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 		t := template.New("Node template")
 		t, err := t.Parse(ndt)
 		if err != nil {
-			log.Printf("error parsing Node template %v\n", err)
+			errLog.Printf("error parsing Node template %v\n", err)
 		}
 		err = t.Execute(w, wt)
 		if err != nil {
-			log.Printf("error executing Node template %v\n", err)
+			errLog.Printf("error executing Node template %v\n", err)
 		}
 
 	}
@@ -464,12 +464,12 @@ func summaryHandler(w http.ResponseWriter, r *http.Request) {
 		t := template.New("Header template")
 		t, err := t.Parse(sp)
 		if err != nil {
-			log.Printf("error parsing summary template %v\n", err)
+			errLog.Printf("error parsing summary template %v\n", err)
 		}
 
 		err = t.Execute(w, hc)
 		if err != nil {
-			log.Printf("error executing summary template %v\n", err)
+			errLog.Printf("error executing summary template %v\n", err)
 		}
 	}
 	writeFooter(w, r, st)
@@ -523,11 +523,11 @@ func writeFooter(w http.ResponseWriter, r *http.Request, st time.Time) {
 	t := template.New("Footer template")
 	t, err := t.Parse(f)
 	if err != nil {
-		log.Printf("error parsing template %v\n", err)
+		errLog.Printf("error parsing template %v\n", err)
 	}
 	err = t.Execute(w, Footer)
 	if err != nil {
-		log.Printf("error executing template %v\n", err)
+		errLog.Printf("error executing template %v\n", err)
 	}
 
 	if config.verbose {

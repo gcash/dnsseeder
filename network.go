@@ -61,17 +61,17 @@ func createNetFile() {
 
 	f, err := os.Create("dnsseeder.json")
 	if err != nil {
-		log.Printf("error creating template file: %v\n", err)
+		errLog.Printf("error creating template file: %v\n", err)
 	}
 	defer func() { _ = f.Close() }()
 
 	j, jerr := json.MarshalIndent(jnw, "", " ")
 	if jerr != nil {
-		log.Printf("error parsing json: %v\n", err)
+		errLog.Printf("error parsing json: %v\n", err)
 	}
 	_, ferr := f.Write(j)
 	if ferr != nil {
-		log.Printf("error writing to template file: %v\n", err)
+		errLog.Printf("error writing to template file: %v\n", err)
 	}
 }
 
@@ -141,7 +141,7 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 		for _, n := range seeder.names {
 			hosts = append(hosts, n.host)
 		}
-		log.Printf("%s: warning: NameServer is not set, so the NS and SOA records for %s name \".\" instead of this server\n",
+		errLog.Printf("%s: warning: NameServer is not set, so the NS and SOA records for %s name \".\" instead of this server\n",
 			jnw.Name, strings.Join(hosts, ", "))
 	}
 
@@ -192,7 +192,7 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 		defer func() { _ = cacheFile.Close() }()
 		jsonParser := json.NewDecoder(cacheFile)
 		if err = jsonParser.Decode(&seeder.theList); err != nil {
-			log.Printf("Error decoding cache file: %v", err)
+			errLog.Printf("Error decoding cache file: %v", err)
 		}
 		// no crawl survives a restart, and a node the cache caught
 		// mid-crawl would otherwise never be crawled again

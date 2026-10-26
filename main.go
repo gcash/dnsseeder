@@ -48,13 +48,21 @@ var (
 	netfile        string
 	dataDir        string
 	defaultDataDir = bchutil.AppDataDir("dnsseeder", false)
+
+	// errLog writes the seeder's errors to standard error.  The log
+	// package, which main sends to standard output, writes the rest, as log
+	// collectors such as GKE's rank every line on standard error as an
+	// error.
+	errLog = log.New(os.Stderr, "", log.LstdFlags)
 )
 
 func main() {
 
+	log.SetOutput(os.Stdout)
+
 	var j bool
 
-	config.version = "1.5.3"
+	config.version = "1.5.4"
 	config.uptime = time.Now()
 
 	flag.StringVar(&netfile, "netfile", "", "List of json config files to load")
@@ -76,7 +84,7 @@ func main() {
 	// configure the network options so we can start crawling
 	netwFiles := strings.Split(netfile, ",")
 	if len(netwFiles) == 0 {
-		fmt.Printf("Error - No filenames specified. Please add -net=<file[, file2]> to load these files\n")
+		errLog.Printf("Error - No filenames specified. Please add -net=<file[, file2]> to load these files\n")
 		os.Exit(1)
 	}
 
@@ -89,7 +97,7 @@ func main() {
 	config.dataDir = cleanAndExpandPath(dataDir)
 	if !fileExists(config.dataDir) {
 		if err := os.MkdirAll(config.dataDir, os.ModePerm); err != nil {
-			fmt.Printf("Error creating data directory %v\n", err)
+			errLog.Printf("Error creating data directory %v\n", err)
 			os.Exit(1)
 		}
 	}
@@ -97,7 +105,7 @@ func main() {
 	for _, nwFile := range netwFiles {
 		nnw, err := loadNetwork(nwFile)
 		if err != nil {
-			fmt.Printf("Error loading data from netfile %s - %v\n", nwFile, err)
+			errLog.Printf("Error loading data from netfile %s - %v\n", nwFile, err)
 			os.Exit(1)
 		}
 		if nnw != nil {
