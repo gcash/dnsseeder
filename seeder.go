@@ -548,7 +548,6 @@ func (s *dnsseeder) auditNodes() {
 	// cgGoal is 75% of the max statusCG clients we can crawl with the current network delay & maxStart settings.
 	// This allows us to cycle statusCG users to keep the list fresh
 	cgGoal := int(float64(s.delay[statusCG]/crawlDelay) * float64(s.maxStart[statusCG]) * 0.75)
-	cgCount := 0
 
 	log.Printf("%s: Audit start. statusCG Goal: %v System Uptime: %s\n", s.name, cgGoal, time.Since(config.uptime).String())
 
@@ -594,27 +593,55 @@ func (s *dnsseeder) auditNodes() {
 			s.theList[k] = nil
 			delete(s.theList, k)
 		}
+	}
 
-		// check if we need to purge statusCG to freshen the list, but keep
-		// the nodes a filtered name returns, which are few among the good
-		// nodes, so they don't drop out of its answers
+	// purge statusCG beyond the goal to freshen the list
+	c += s.cycleGoodNodes(cgGoal)
+
+	log.Printf("%s: Audit complete. %v nodes purged. %v total nodes\n", s.name, c, len(s.theList))
+}
+
+// cycleGoodNodes deletes the good nodes beyond goal from the list, so it cycles
+// through the network's nodes: first the ones whose height is outside the
+// window, which no name returns, then others, but not those a filtered name
+// returns, which are few among the good nodes, so they don't drop out of its
+// answers.  It returns how many it deleted.  The list must be locked.
+func (s *dnsseeder) cycleGoodNodes(goal int) int {
+	over := -goal
+	for _, nd := range s.theList {
 		if nd.Status == statusCG {
-			if cgCount++; cgCount > cgGoal && !s.filteredNameReturns(nd) {
-				// we have enough statusCG clients so purge remaining to cycle through the list
-				if config.verbose {
-					log.Printf("%s: seeder cycle statusCG - purging node %s\n", s.name, k)
-				}
-
-				c++
-				// remove the map entry and mark the old node as
-				// nil so garbage collector will remove it
-				s.theList[k] = nil
-				delete(s.theList, k)
-			}
+			over++
 		}
 	}
 
-	log.Printf("%s: Audit complete. %v nodes purged. %v total nodes\n", s.name, c, len(s.theList))
+	median := int64(s.medianHeight())
+	deleted := 0
+	for _, outside := range []bool{true, false} {
+		for k, nd := range s.theList {
+			if over <= 0 {
+				return deleted
+			}
+			if nd.Status != statusCG {
+				continue
+			}
+			d := int64(nd.LastBlock) - median
+			if (d > maxHeightDiff || d < -maxHeightDiff) != outside {
+				continue
+			}
+			if !outside && s.filteredNameReturns(nd) {
+				continue
+			}
+
+			// we have enough statusCG clients so purge remaining to cycle through the list
+			if config.verbose {
+				log.Printf("%s: seeder cycle statusCG - purging node %s\n", s.name, k)
+			}
+			delete(s.theList, k)
+			over--
+			deleted++
+		}
+	}
+	return deleted
 }
 
 // loadDNS loads the dns records with time based test data

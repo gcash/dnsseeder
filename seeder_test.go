@@ -165,3 +165,45 @@ func TestAuditKeepsFilteredNodes(t *testing.T) {
 		t.Errorf("%d other good nodes kept, want at most 1", other)
 	}
 }
+
+// TestAuditCyclesOutOfWindowFirst ensures the audit, when it cycles out the
+// good nodes beyond its goal, takes the ones whose height is outside the
+// window first, as no name returns them, instead of any good nodes.
+func TestAuditCyclesOutOfWindowFirst(t *testing.T) {
+	config.dataDir = t.TempDir()
+	config.seeders = make(map[string]*dnsseeder)
+	s, err := initNetwork(JNetwork{Name: "Window Audit Test", ID: "0xe8f3e1e3",
+		Port: 8333, NameServer: "ns.example.org",
+		DNSName: "window-audit-test.example.org", ServiceFilter: []string{"NodeNetwork"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A goal of five good nodes.
+	s.delay[statusCG], s.maxStart[statusCG] = crawlDelay, 7
+
+	for i := 1; i <= 10; i++ {
+		if !s.addNa(wire.NewNetAddressIPPort(net.IPv4(10, 0, 0, byte(i)), 8333, 0)) {
+			t.Fatalf("node %d not added", i)
+		}
+		nd := s.theList[net.JoinHostPort(net.IPv4(10, 0, 0, byte(i)).String(), "8333")]
+		nd.Status, nd.Services, nd.LastBlock = statusCG, wire.SFNodeNetwork, 1000
+		// Four nodes of another chain, far behind.
+		if i <= 4 {
+			nd.LastBlock = 100
+		}
+	}
+	s.auditNodes()
+
+	inside, outside := 0, 0
+	for _, nd := range s.theList {
+		if nd.LastBlock == 100 {
+			outside++
+		} else {
+			inside++
+		}
+	}
+	if outside != 0 || inside != 5 {
+		t.Errorf("%d nodes inside the window and %d outside kept, want 5 and 0",
+			inside, outside)
+	}
+}
