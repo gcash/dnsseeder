@@ -4,13 +4,14 @@
   "Id": "0xe8f3e1e3",
   "Port": 8333,
   "Pver": 70016,
-  "DNSName": "seeder.example.com",
-  "NameServer": "nameserver.example.com",
-  "Mbox": "admin.example.com",
+  "NameServer": "dnsseeder.bchd.cash",
   "TTL": 600,
   "Seeder1": "btccash-seeder.bitcoinunlimited.info",
   "Seeder2": "seed.bch.loping.net",
   "Seeder3": "bchseed.c3-soft.com",
-  "InitialIPs": ["127.0.0.1"],
-  "ServiceFilter": ["NodeNetwork", "NodeCF", "NodeBloom"]
+  "DNSNames": [
+    {"Name": "seed.bchd.cash", "ServiceFilter": ["NodeNetwork"]},
+    {"Name": "x105.seed.bchd.cash", "ServiceFilter": ["NodeNetwork", "NodeCF", "NodeBloom"]},
+    {"Name": "x101.seed.bchd.cash", "ServiceFilter": ["NodeNetwork", "NodeCF"], "UserAgentFilter": ["bchd:0.22."]}
+  ]
 }

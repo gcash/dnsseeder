@@ -81,6 +81,8 @@ A network config can serve several names from one crawl of the network. Instead 
 ]
 ```
 
+The `configs` directory holds the configs of the bchd.cash seeders, one per network with its plain, `x105` and `x101` names, and templates, `*.json.template`, to start a config for your own seeder from.
+
 ## RUNNING AS NON-ROOT
 
 Typically, you'll need root privileges to listen to port 53 (name service).

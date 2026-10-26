@@ -10,16 +10,21 @@ import (
 	"github.com/gcash/bchd/wire"
 )
 
-// TestNetworkConfigs loads every network config in the configs directory and
-// checks that each of its names returns only nodes with the services its
-// clients ask for, and that the names with a user agent filter, the compact
-// filter ones, return every bchd 0.22 release, which all follow the May 2026
-// upgrade, and no other node software.
+// TestNetworkConfigs loads every network config and template in the configs
+// directory and checks that each of its names returns only nodes with the
+// services its clients ask for, and that the names with a user agent filter,
+// the compact filter ones, return every bchd 0.22 release, which all follow
+// the May 2026 upgrade, and no other node software.
 func TestNetworkConfigs(t *testing.T) {
 	files, err := filepath.Glob("configs/*.json")
 	if err != nil {
 		t.Fatal(err)
 	}
+	templates, err := filepath.Glob("configs/*.json.template")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files = append(files, templates...)
 	if len(files) == 0 {
 		t.Fatal("no network configs found")
 	}

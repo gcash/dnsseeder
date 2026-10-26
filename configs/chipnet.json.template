@@ -1,0 +1,14 @@
+{
+  "Name": "Chipnet",
+  "Desc": "Bitcoin Cash Chipnet",
+  "Id": "0xafdab7e2",
+  "Port": 48333,
+  "Pver": 70016,
+  "DNSName": "seeder.example.com",
+  "NameServer": "nameserver.example.com",
+  "Mbox": "admin.example.com",
+  "TTL": 300,
+  "Seeder1": "chipnet.bitjson.com",
+  "Seeder2": "seed.cbch.loping.net",
+  "ServiceFilter": ["NodeNetwork"]
+}

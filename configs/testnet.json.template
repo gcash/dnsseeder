@@ -1,12 +1,13 @@
 {
-  "Name": "Testnet3 All",
-  "Desc": "Bitcoin Cash Testnet3 - All",
+  "Name": "Testnet3",
+  "Desc": "Bitcoin Cash Testnet3",
   "Id": "0xf4f3e5f4",
   "Port": 18333,
   "Pver": 70016,
-  "DNSName": "testnet-seed.bchd.cash",
-  "NameServer": "dnsseeder.bchd.cash",
-  "TTL": 600,
+  "DNSName": "seeder.example.com",
+  "NameServer": "nameserver.example.com",
+  "Mbox": "admin.example.com",
+  "TTL": 300,
   "Seeder1": "seed.tbch.loping.net",
   "Seeder2": "testnet-seed.bitcoinunlimited.info",
   "ServiceFilter": ["NodeNetwork"]
