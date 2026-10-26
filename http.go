@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"html"
+	"html/template"
 	"log"
 	"net/http"
-	"text/template"
 	"time"
 )
 
@@ -186,8 +186,15 @@ func statusNGHandler(w http.ResponseWriter, r *http.Request) {
 
 type webstatus struct {
 	Key    string
-	Value  string
+	Fields []webfield
 	Seeder string
+}
+
+// webfield is one labelled value of a node's summary.  The template adds the
+// markup, so the value, which can hold what a node reported, is escaped.
+type webfield struct {
+	Label string
+	Value string
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request, status uint32) {
@@ -220,7 +227,7 @@ func statusHandler(w http.ResponseWriter, r *http.Request, status uint32) {
 	       <a href="/node?s={{.Seeder}}&nd={{.Key}}">{{.Key}}</a>
 	  </td>
 	  <td>
-	       {{.Value}}
+	       {{range .Fields}}<b>{{.Label}}:</b> {{.Value}} {{end}}
 	  </td>
 	  </tr>
 	     {{end}}
@@ -265,7 +272,7 @@ func generateWebStatus(s *dnsseeder, status uint32) (ws []webstatus) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 
-	var valueStr string
+	var fields []webfield
 
 	for k, v := range s.theList {
 		if v.Status != status {
@@ -274,34 +281,37 @@ func generateWebStatus(s *dnsseeder, status uint32) (ws []webstatus) {
 
 		switch status {
 		case statusRG:
-			valueStr = fmt.Sprintf("<b>Fail Count:</b> %v <b>DNS Type:</b> %s",
-				v.ConnectFails,
-				v.dns2str())
+			fields = []webfield{
+				{"Fail Count", fmt.Sprint(v.ConnectFails)},
+				{"DNS Type", v.dns2str()},
+			}
 		case statusCG:
-			valueStr = fmt.Sprintf("<b>Remote Version:</b> %v%s <b>Last Block:</b> %v <b>DNS Type:</b> %s",
-				v.Version,
-				v.StrVersion,
-				v.LastBlock,
-				v.dns2str())
+			fields = []webfield{
+				{"Remote Version", fmt.Sprintf("%v%s", v.Version, v.StrVersion)},
+				{"Last Block", fmt.Sprint(v.LastBlock)},
+				{"DNS Type", v.dns2str()},
+			}
 
 		case statusWG:
-			valueStr = fmt.Sprintf("<b>Last Try:</b> %s ago <b>Last Status:</b> %s\n",
-				time.Since(v.LastTry).String(),
-				v.StatusStr)
+			fields = []webfield{
+				{"Last Try", time.Since(v.LastTry).String() + " ago"},
+				{"Last Status", v.StatusStr},
+			}
 
 		case statusNG:
-			valueStr = fmt.Sprintf("<b>Fail Count:</b> %v <b>Last Try:</b> %s ago <b>Last Status:</b> %s\n",
-				v.ConnectFails,
-				time.Since(v.LastTry).String(),
-				v.StatusStr)
+			fields = []webfield{
+				{"Fail Count", fmt.Sprint(v.ConnectFails)},
+				{"Last Try", time.Since(v.LastTry).String() + " ago"},
+				{"Last Status", v.StatusStr},
+			}
 
 		default:
-			valueStr = ""
+			fields = nil
 		}
 
 		ows := webstatus{
 			Key:    k,
-			Value:  valueStr,
+			Fields: fields,
 			Seeder: s.name,
 		}
 		ws = append(ws, ows)
@@ -382,6 +392,7 @@ func nodeHandler(w http.ResponseWriter, r *http.Request) {
 
 		nd := s.theList[k]
 		wt := webtemplate{
+			Key:            k,
 			IP:             nd.NA.IP.String(),
 			Port:           nd.NA.Port,
 			DNStype:        nd.dns2str(),
