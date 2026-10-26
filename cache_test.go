@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -96,5 +97,63 @@ func TestRestartFromCache(t *testing.T) {
 			names = append(names, f.Name())
 		}
 		t.Errorf("data directory holds %q", names)
+	}
+}
+
+// TestCrawlInitialIPsFirst ensures a seeder crawls the nodes its config lists
+// in InitialIPs as soon as it starts.  They only joined the new nodes, which
+// it crawls 20 at a time in random order, so behind a long list they waited.
+func TestCrawlInitialIPsFirst(t *testing.T) {
+	crawled := make(chan struct{}, 1)
+	addr := fakeNode(t, func(conn net.Conn, _ *wire.MsgVersion) {
+		select {
+		case crawled <- struct{}{}:
+		default:
+		}
+	})
+	_, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config.dataDir = t.TempDir()
+	config.seeders = make(map[string]*dnsseeder)
+	config.dns = make(map[string][]dns.RR)
+	s, err := initNetwork(JNetwork{
+		Name:       "Initial Test",
+		ID:         "0xe8f3e1e3",
+		Port:       uint16(port),
+		DNSName:    "initial-test.example.org",
+		NameServer: "ns.example.org",
+		InitialIPs: []string{"127.0.0.1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 500 other new nodes on loopback addresses, which refuse connections.
+	for i := 0; i < 500; i++ {
+		ip := net.IPv4(127, 0, byte(1+i/250), byte(1+i%250))
+		if !s.addNa(wire.NewNetAddressIPPort(ip, uint16(port), 0)) {
+			t.Fatalf("node %s not added", ip)
+		}
+	}
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go s.runSeeder(done, &wg)
+	t.Cleanup(func() {
+		close(done)
+		wg.Wait()
+	})
+
+	select {
+	case <-crawled:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the initial node wasn't crawled at the start")
 	}
 }

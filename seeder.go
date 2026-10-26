@@ -188,6 +188,10 @@ func (s *dnsseeder) runSeeder(done <-chan struct{}, wg *sync.WaitGroup) {
 	// load data from other seeders so we can start crawling nodes
 	s.initSeeder()
 
+	// crawl the config's initial nodes first, instead of whenever the
+	// regular rounds pick them among the list
+	s.crawlInitialIPs(resultsChan)
+
 	// start initial scan now so we don't have to wait for the timers to fire
 	s.startCrawlers(resultsChan)
 
@@ -224,6 +228,29 @@ func (s *dnsseeder) runSeeder(done <-chan struct{}, wg *sync.WaitGroup) {
 	s.dumpCache()
 	fmt.Printf("shutting down seeder: %s\n", s.name)
 	// end the goroutine & defer will call wg.Done()
+}
+
+// crawlInitialIPs starts crawls of the nodes the config lists in InitialIPs,
+// which its operator knows of, so they're checked as soon as the seeder starts,
+// instead of whenever startCrawlers picks them among the other new nodes, which
+// can take an hour on a long list.
+func (s *dnsseeder) crawlInitialIPs(resultsChan chan *result) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
+	for _, ip := range s.initialIPs {
+		addr := net.ParseIP(ip)
+		if addr == nil {
+			continue
+		}
+		nd, ok := s.theList[net.JoinHostPort(addr.String(), strconv.Itoa(int(s.port)))]
+		if !ok || nd.CrawlActive {
+			continue
+		}
+		nd.CrawlActive = true
+		nd.CrawlStart = time.Now()
+		go crawlNode(resultsChan, s, nd)
+	}
 }
 
 // startCrawlers is called on a time basis to start maxcrawlers new
