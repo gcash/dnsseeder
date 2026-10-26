@@ -123,9 +123,13 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 		if jn.Name == "" {
 			return nil, fmt.Errorf("no DNS hostname supplied")
 		}
+		services, err := parseServices(jn.ServiceFilter)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %v", jn.Name, err)
+		}
 		seeder.names = append(seeder.names, dnsName{
 			host:            strings.ToLower(jn.Name),
-			serviceFilter:   parseServices(jn.ServiceFilter),
+			serviceFilter:   services,
 			userAgentFilter: jn.UserAgentFilter,
 		})
 	}
@@ -201,9 +205,10 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 	return seeder, nil
 }
 
-// parseServices returns the service flags of a service filter's names, and
-// ignores names it doesn't know.
-func parseServices(names []string) []wire.ServiceFlag {
+// parseServices returns the service flags of a service filter's names, or an
+// error for a name it doesn't know, which it ignored, so a misspelled service
+// let a name return nodes without it.
+func parseServices(names []string) ([]wire.ServiceFlag, error) {
 	var services []wire.ServiceFlag
 	for _, service := range names {
 		switch strings.ToLower(service) {
@@ -219,7 +224,9 @@ func parseServices(names []string) []wire.ServiceFlag {
 			services = append(services, wire.SFNodeCF)
 		case "nodebitcoincash":
 			services = append(services, wire.SFNodeBitcoinCash)
+		default:
+			return nil, fmt.Errorf("unknown service %q", service)
 		}
 	}
-	return services
+	return services, nil
 }
