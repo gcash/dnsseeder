@@ -464,6 +464,13 @@ func (s *dnsseeder) addNa(nNa *wire.NetAddress) bool {
 	return true
 }
 
+// cachePath returns the path of the cache file of the seeder called name.  The
+// .cache.json ending keeps it apart from a network file of the same name,
+// also on a filesystem that ignores case.
+func cachePath(name string) string {
+	return path.Join(config.dataDir, name+".cache.json")
+}
+
 // dumpCache saves the list to the seeder's cache file.  It writes a temporary
 // file and renames it over the cache, so the cache is never left part written.
 func (s *dnsseeder) dumpCache() {
@@ -475,8 +482,8 @@ func (s *dnsseeder) dumpCache() {
 		return
 	}
 
-	cachePath := path.Join(config.dataDir, fmt.Sprintf("%s.json", s.name))
-	f, err := os.CreateTemp(config.dataDir, fmt.Sprintf("%s.json.*", s.name))
+	file := cachePath(s.name)
+	f, err := os.CreateTemp(config.dataDir, path.Base(file)+".*")
 	if err != nil {
 		log.Printf("error writing cache: %s\n", err)
 		return
@@ -489,7 +496,7 @@ func (s *dnsseeder) dumpCache() {
 		err = cerr
 	}
 	if err == nil {
-		err = os.Rename(f.Name(), cachePath)
+		err = os.Rename(f.Name(), file)
 	}
 	if err != nil {
 		_ = os.Remove(f.Name())

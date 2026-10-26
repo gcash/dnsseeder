@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 
@@ -184,7 +183,7 @@ func initNetwork(jnw JNetwork) (*dnsseeder, error) {
 		return nil, err
 	}
 
-	cacheFile, err := os.Open(path.Join(config.dataDir, fmt.Sprintf("%s.json", seeder.name)))
+	cacheFile, err := os.Open(cachePath(seeder.name))
 	if err == nil {
 		defer func() { _ = cacheFile.Close() }()
 		jsonParser := json.NewDecoder(cacheFile)

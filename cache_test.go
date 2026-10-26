@@ -57,8 +57,8 @@ func TestRestartFromCache(t *testing.T) {
 				nd.Status, nd.CrawlActive)
 		}
 	}
-	cachePath := filepath.Join(config.dataDir, "Restart Test.json")
-	if err := os.Remove(cachePath); err != nil {
+	cache := filepath.Join(config.dataDir, "Restart Test.cache.json")
+	if err := os.Remove(cache); err != nil {
 		t.Fatal(err)
 	}
 
@@ -83,7 +83,7 @@ func TestRestartFromCache(t *testing.T) {
 
 	close(done)
 	wg.Wait()
-	if _, err := os.Stat(cachePath); err != nil {
+	if _, err := os.Stat(cache); err != nil {
 		t.Errorf("cache not saved on stop: %v", err)
 	}
 	files, err := os.ReadDir(config.dataDir)
