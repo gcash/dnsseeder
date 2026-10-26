@@ -186,6 +186,10 @@ func handleDNS(w dns.ResponseWriter, r *dns.Msg) {
 		RecursionAvailable: false,
 	}}
 	m.SetReply(r)
+	// Compress the names, so an answer of 25 addresses fits the 512 bytes
+	// of a UDP reply without EDNS, which the seeder doesn't support, and
+	// spoofed queries make it send about half as much.
+	m.Compress = true
 
 	var qtype string
 

@@ -10,6 +10,24 @@ import (
 	"github.com/miekg/dns"
 )
 
+// startDNSServer serves handleDNS on a loopback UDP port until the test ends,
+// and returns its address.
+func startDNSServer(t *testing.T) string {
+	t.Helper()
+
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{})
+	server := &dns.Server{PacketConn: pc, Handler: dns.HandlerFunc(handleDNS),
+		NotifyStartedFunc: func() { close(started) }}
+	go func() { _ = server.ActivateAndServe() }()
+	<-started
+	t.Cleanup(func() { _ = server.Shutdown() })
+	return pc.LocalAddr().String()
+}
+
 // TestHandleDNSCase ensures a seeder answers, and counts, a request whatever
 // the case of the name asked for, as resolvers such as Google Public DNS
 // randomize it (DNS 0x20), also when its config names it in mixed case.
@@ -37,17 +55,7 @@ func TestHandleDNSCase(t *testing.T) {
 		nd.Status = statusCG
 	}
 	updateDNS(s)
-
-	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	started := make(chan struct{})
-	server := &dns.Server{PacketConn: pc, Handler: dns.HandlerFunc(handleDNS),
-		NotifyStartedFunc: func() { close(started) }}
-	go func() { _ = server.ActivateAndServe() }()
-	<-started
-	defer func() { _ = server.Shutdown() }()
+	addr := startDNSServer(t)
 
 	names := []string{"case-test.example.org.", "CASE-TEST.EXAMPLE.ORG.",
 		"cAsE-tEsT.eXaMpLe.OrG."}
@@ -57,7 +65,7 @@ func TestHandleDNSCase(t *testing.T) {
 			msg := name + " " + dns.TypeToString[qtype]
 			q := new(dns.Msg)
 			q.SetQuestion(name, qtype)
-			reply, err := dns.Exchange(q, pc.LocalAddr().String())
+			reply, err := dns.Exchange(q, addr)
 			if err != nil {
 				t.Fatalf("%s: %v", msg, err)
 			}
@@ -137,4 +145,57 @@ func TestUpdateDNSHeights(t *testing.T) {
 				served[n.ip], n.served)
 		}
 	}
+}
+
+// TestHandleDNSSize ensures an answer of 25 addresses fits the 512 bytes of a
+// UDP reply without EDNS.  Uncompressed it took 1,068.
+func TestHandleDNSSize(t *testing.T) {
+	config.dns = make(map[string][]dns.RR)
+	s := &dnsseeder{dnsHost: "compress-test.example.org", ttl: 60, port: 8333,
+		maxSize: 100, theList: make(map[string]*node)}
+	for i := 1; i <= 30; i++ {
+		if !s.addNa(wire.NewNetAddressIPPort(net.IPv4(10, 0, 0, byte(i)), 8333, 0)) {
+			t.Fatalf("node %d not added", i)
+		}
+	}
+	for _, nd := range s.theList {
+		nd.Status, nd.LastBlock = statusCG, 1000
+	}
+	updateDNS(s)
+	addr := startDNSServer(t)
+
+	q := new(dns.Msg)
+	q.SetQuestion("compress-test.example.org.", dns.TypeA)
+	query, err := q.Pack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := net.Dial("udp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Write(query); err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 65535)
+	n, err := conn.Read(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reply := new(dns.Msg)
+	if err := reply.Unpack(buf[:n]); err != nil {
+		t.Fatal(err)
+	}
+	if len(reply.Answer) != 25 {
+		t.Errorf("%d addresses in the answer", len(reply.Answer))
+	}
+	if n > 512 {
+		t.Errorf("answer of %d bytes", n)
+	}
+	t.Logf("answer of %d addresses in %d bytes", len(reply.Answer), n)
 }
