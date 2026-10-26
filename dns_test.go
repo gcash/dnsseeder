@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"net"
 	"testing"
 	"time"
@@ -88,5 +89,52 @@ func TestHandleDNSCase(t *testing.T) {
 			t.Fatalf("%d of %d requests counted", got, want)
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// TestUpdateDNSHeights ensures a seeder returns only the good nodes whose
+// height is within maxHeightDiff of the median height of its good nodes, and
+// leaves out nodes of other chains and nodes that stopped syncing, which it
+// returned too.
+func TestUpdateDNSHeights(t *testing.T) {
+	config.dns = make(map[string][]dns.RR)
+	s := &dnsseeder{dnsHost: "height-test.example.org", ttl: 60, port: 8333,
+		maxSize: 100, theList: make(map[string]*node)}
+
+	nodes := []struct {
+		ip     string
+		height int32
+		status uint32
+		served bool
+	}{
+		{"10.0.0.1", 1000, statusCG, true},
+		{"10.0.0.2", 1000, statusCG, true},
+		{"10.0.0.3", 1001, statusCG, true},
+		{"10.0.0.4", 999, statusCG, true},
+		{"10.0.0.5", 1000 - maxHeightDiff, statusCG, true},
+		{"10.0.0.6", 1000 - maxHeightDiff - 1, statusCG, false},
+		{"10.0.0.7", 1000 + maxHeightDiff + 1, statusCG, false},
+		{"10.0.0.8", math.MaxInt32, statusCG, false},
+		// Not a good node, so its height doesn't count toward the median.
+		{"10.0.0.9", 5, statusWG, false},
+	}
+	for _, n := range nodes {
+		if !s.addNa(wire.NewNetAddressIPPort(net.ParseIP(n.ip), 8333, 0)) {
+			t.Fatalf("%s not added", n.ip)
+		}
+		nd := s.theList[net.JoinHostPort(n.ip, "8333")]
+		nd.Status, nd.LastBlock = n.status, n.height
+	}
+	updateDNS(s)
+
+	served := make(map[string]bool)
+	for _, rr := range config.dns["height-test.example.org.A"] {
+		served[rr.(*dns.A).A.String()] = true
+	}
+	for _, n := range nodes {
+		if served[n.ip] != n.served {
+			t.Errorf("%s at height %d: served %v, want %v", n.ip, n.height,
+				served[n.ip], n.served)
+		}
 	}
 }

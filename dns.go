@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"slices"
 	"strings"
 	"time"
 
@@ -10,6 +11,30 @@ import (
 	"github.com/miekg/dns"
 )
 
+// maxHeightDiff is how far, in blocks, the height a node reported may be from
+// the median height of the seeder's good nodes for the seeder to return it.
+// Nodes of other chains that share the network's magic, and nodes that
+// stopped syncing, are much further off: in a probe of 87 nodes from four BCH
+// seeds, every BCH node was at the median, and the closest of the others,
+// eCash nodes, were 1,816 blocks behind.
+const maxHeightDiff = 144
+
+// medianHeight returns the median of the heights the seeder's good nodes
+// reported.  The seeder's list must be locked.
+func (s *dnsseeder) medianHeight() int32 {
+	var heights []int32
+	for _, nd := range s.theList {
+		if nd.Status == statusCG {
+			heights = append(heights, nd.LastBlock)
+		}
+	}
+	if len(heights) == 0 {
+		return 0
+	}
+	slices.Sort(heights)
+	return heights[len(heights)/2]
+}
+
 // updateDNS updates the current slices of dns.RR so incoming requests get a
 // fast answer
 func updateDNS(s *dnsseeder) {
@@ -17,6 +42,8 @@ func updateDNS(s *dnsseeder) {
 	var rr4std, rr4non, rr6std, rr6non []dns.RR
 
 	s.mtx.RLock()
+
+	median := int64(s.medianHeight())
 
 	// loop over each dns recprd type we need
 	for t := range []int{dnsV4Std, dnsV4Non, dnsV6Std, dnsV6Non} {
@@ -30,6 +57,11 @@ func updateDNS(s *dnsseeder) {
 			}
 
 			if nd.Status != statusCG {
+				continue
+			}
+
+			// leave out nodes on another chain or behind on this one
+			if d := int64(nd.LastBlock) - median; d > maxHeightDiff || d < -maxHeightDiff {
 				continue
 			}
 
