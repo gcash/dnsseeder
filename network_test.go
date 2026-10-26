@@ -73,7 +73,8 @@ func TestNetworkConfigs(t *testing.T) {
 // TestDNSNamesConfig ensures a network config can serve several dns names,
 // each with its own filters, that the one name format still loads, and that a
 // config with both, with a name twice, with a name another config serves, with
-// an empty name, or with a service it doesn't know, is refused.
+// an empty name, with a service it doesn't know, or with another config's
+// seeder name, is refused.
 func TestDNSNamesConfig(t *testing.T) {
 	config.dataDir = t.TempDir()
 	config.seeders = make(map[string]*dnsseeder)
@@ -132,6 +133,9 @@ func TestDNSNamesConfig(t *testing.T) {
 	misspeltOne.Name = "Misspelt One Test"
 	misspeltOne.DNSName = "misspelt-one.example.org"
 	misspeltOne.ServiceFilter = []string{"NodeNetwrok"}
+	sameName := base
+	sameName.Name = "NAMES TEST"
+	sameName.DNSNames = []JDNSName{{Name: "same-name.example.org"}}
 
 	refused := []struct {
 		jnw    JNetwork
@@ -143,6 +147,7 @@ func TestDNSNamesConfig(t *testing.T) {
 		{empty, "no DNS hostname supplied"},
 		{misspelt, `misspelt.example.org: unknown service "NodeCompactFilters"`},
 		{misspeltOne, `misspelt-one.example.org: unknown service "NodeNetwrok"`},
+		{sameName, "duplicate seeder name NAMES TEST, already loaded as Names Test"},
 	}
 	for _, test := range refused {
 		_, err := initNetwork(test.jnw)

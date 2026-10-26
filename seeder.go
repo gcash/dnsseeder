@@ -643,9 +643,18 @@ func (s *dnsseeder) filteredNameReturns(nd *node) bool {
 	return false
 }
 
-// isDuplicateSeeder returns true if the seeder serves a dns name twice, or one
-// that a loaded seeder serves
+// isDuplicateSeeder returns true if a loaded seeder has the seeder's name, or
+// the seeder serves a dns name twice, or one that a loaded seeder serves
 func isDuplicateSeeder(s *dnsseeder) (bool, error) {
+
+	// The seeders are kept by name, and their cache files are named after
+	// them, so a seeder with a loaded one's name, in any case, would replace
+	// it and share its cache.
+	for _, v := range config.seeders {
+		if strings.EqualFold(v.name, s.name) {
+			return true, fmt.Errorf("duplicate seeder name %s, already loaded as %s", s.name, v.name)
+		}
+	}
 
 	// check for duplicate seeders with the same details
 	for i, n := range s.names {
