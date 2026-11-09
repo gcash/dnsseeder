@@ -17,6 +17,13 @@ import (
 // then waits for the crawler to disconnect.
 func fakeNode(t *testing.T, serve func(conn net.Conn, version *wire.MsgVersion)) string {
 	t.Helper()
+	return fakeSlowNode(t, 0, serve)
+}
+
+// fakeSlowNode runs a fake node, as fakeNode does, that waits delay before it
+// answers the crawler's version message.
+func fakeSlowNode(t *testing.T, delay time.Duration, serve func(conn net.Conn, version *wire.MsgVersion)) string {
+	t.Helper()
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -32,6 +39,7 @@ func fakeNode(t *testing.T, serve func(conn net.Conn, version *wire.MsgVersion))
 			}
 			go func() {
 				defer func() { _ = conn.Close() }()
+				time.Sleep(delay)
 				version, err := fakeHandshake(conn)
 				if err != nil {
 					return
@@ -101,6 +109,25 @@ func TestCrawlFullSeeder(t *testing.T) {
 		t.Fatal("the crawl left the list locked")
 	}
 	s.mtx.Unlock()
+}
+
+// TestCrawlSlowHandshake ensures a crawl waits for a node that takes longer
+// than 5 seconds to complete the handshake.  The crawl gave up after 5, so
+// such a node failed every crawl.
+func TestCrawlSlowHandshake(t *testing.T) {
+	addr := fakeSlowNode(t, 6*time.Second, func(conn net.Conn, _ *wire.MsgVersion) {
+		msg := testAddrMsg(net.IPv4(1, 2, 3, 4), net.IPv4(5, 6, 7, 8))
+		_ = wire.WriteMessage(conn, msg, wire.ProtocolVersion, wire.MainNet)
+	})
+	s := &dnsseeder{name: "Test", theList: map[string]*node{}, maxSize: 100}
+
+	nas, cerr := crawlIP(s, &result{node: addr})
+	if cerr != nil {
+		t.Fatal(cerr)
+	}
+	if len(nas) != 2 {
+		t.Errorf("crawl returned %d addresses, want 2", len(nas))
+	}
 }
 
 // goroutinesIn returns the number of goroutines with fn on their stack.

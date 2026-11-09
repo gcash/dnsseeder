@@ -12,6 +12,9 @@ import (
 	"github.com/gcash/bchd/wire"
 )
 
+// verackTimeout is how long a crawl waits for the handshake to complete.
+const verackTimeout = 30 * time.Second
+
 type crawlError struct {
 	errLoc string
 	Err    error
@@ -107,10 +110,13 @@ func crawlIP(s *dnsseeder, r *result) ([]*wire.NetAddress, *crawlError) {
 	defer p.WaitForDisconnect()
 	defer p.Disconnect()
 
-	// Wait for the verack message or timeout in case of failure.
+	// Wait for the verack message or timeout in case of failure.  Give the
+	// handshake 30 seconds, bchd's own negotiate timeout, instead of 5,
+	// which a busy node or a slow path can miss, and two failed crawls drop
+	// a good node from the names it alone matches.
 	select {
 	case <-verack:
-	case <-time.After(time.Second * 5):
+	case <-time.After(verackTimeout):
 		return nil, &crawlError{"Verack timeout", errors.New("")}
 	}
 
